@@ -1,0 +1,168 @@
+Metapixels! Fun, right?!
+
+They let you do all sorts of interesting and cool stuff, but they can also be pretty
+confusing to understand. So, I've made a document that lists and explains all metapixels
+and how they work!
+
+To start off - actually adding metapixels to a hat.
+In order to add metapixels to a hat, you need to 
+add an extra column of pixels at the far right of the hat.
+Pretty simple right? Hopefully. If you somehow don't
+get what "add a extra column of pixels at the far right of the hat"
+means, then there's plenty of hat templates that include the
+metapixel column.
+
+So, how do metapixels work? Well, they use the
+RGB value of the pixel to do cool stuff!
+Instead of thinking of the pixel as a colour, you
+need to look at it as three numbers - Red,
+Green, and Blue. (R, G, B)
+
+
+R = Red value of the metapixel. This is the ID value,
+which sets what metapixel it is. The ID of each metapixel is just before
+their names in the list.
+
+G = Green value of the metapixel
+B = Blue value of the metapixel
+These two are the parameters, used for the actual effect
+of the metapixel.
+
+Each pixel in that column I mentioned can be used as a metapixel, you just
+need to set the Red value of it to the metapixel ID, and the Green and Blue to
+whatever values the metapixel takes.
+
+Here are a bunch of labels I'm using to show what kind of metapixel each one is.
+Feel free to refer back to this to figure out how a certain metapixel works!
+
+I use X and Y a lot in here as well as R, G and B. X and Y are
+position values - you should be familiar with them, but if not,
+the basic idea is that the X value is left-right position and
+the Y value is up-down position, with lower X being further left,
+and lower Y being higher up.
+Types of metapixels:
+
+
+
+VEC(RANGE) = Vector metapixels. VEC metapixels use G as X value and B 
+as the Y value. G/B 128 is always 0 X/Y, allowing a max offset of plus or
+minus 128 X/Y. VEC Metapixels each have a range, which is the
+maximum offset for them - a offset of more will get clamped to
+be within the range. (So, a metapixel with range 10 would allow for
+a maximum offset of plus or minus 10 pixels, or a value of 118 to 138)
+
+NVEC(MAX) = Normalised Vector metapixels. These use G and B as X and Y
+the same as VEC metapixels, but range from 0 to MAX, 
+with G = 255 being MAX and G = 0 being 0 (and the same for B)
+
+NNVEC(MAX) = Negative Normalised Vector metapixels. These are the
+same as NVEC metapixels, but range from -MAX to +MAX (with G = 255 being
+positive MAX and G = 0 being negative MAX)
+
+FLOAT(MAX) = Floating Point metapixels. These only use G as the value,
+and range from 0 to MAX, with G = 255 being MAX and G = 0 being 0.
+
+NFLOAT(MAX) = Negative Floating Point metapixels. These are the same
+as FLOAT metapixels, but range from -MAX to +MAX (with G = 255 being
+positive MAX and G = 0 being negative MAX)
+
+INT(RANGE) = Integer metapixels. These are the same as VEC metapixels,
+but only use the G value.
+
+BOOL = Boolean (true/false) metapixels. Boolean metapixels do NOT
+use the G and B values, and instead only check if the pixel exists.
+
+SPECIAL = Takes a special parameter format/uses parameters for a
+special effect, which will be explained for the specific metapixel.
+
+So, here's the actual list! I've broken it down into a few sections for metapixels that affect certain things.
+
+HAT MODIFIERS:
+
+1-Hat Offset: VEC(16) - The offset to apply to the hat
+
+2-Use Duck Color: BOOL - Replaces White (255,255,255) and 
+Grey (157,157,157) pixels in the hat with the duck colours
+
+CAPE MODIFIERS:
+
+10-Cape Offset: VEC(16) - The offset to apply to the cape
+
+11-Cape Is Foreground: BOOL - Draws the cape in front of the duck
+
+12-Cape Sway Modifier: NNVEC(1) - Affects the cape length and sway
+
+13-Cape Wiggle Modifier: NNVEC(1) - Affects how much the cape is affected by the "wind"
+
+14-Cape Taper Start: FLOAT(1) - Affects how narrow the cape is at the top
+
+15-Cape Taper End: FLOAT(1) - Affects how narrow the cape is at the bottom
+
+16-Cape Alpha Start: FLOAT(1) - Affects how transparent the cape is at the top
+
+17-Cape Alpha End: FLOAT(1) - Affects how transparent the cape is at the bottom
+
+20-Cape Is Trail: BOOL - Renders the cape as a trail instead (Like the TV trail)
+
+PARTICLE MODIFIERS:
+
+30-Particle Emitter Offset: VEC(16) - The offset to apply to the particle emitter (where the particles spawn), Ranges from 0-16 pixels for both X and Y
+
+31-Particle Default Behaviour: SPECIAL - A preset particle behaviour. The B value lets you
+choose from this list: 0 = None, 1 = Spit, 2 = Burst, 3 = Halo, 4 = Exclamation (This metapixel overrides the other particle metapixels)
+
+32-Particle Emit Shape: SPECIAL - The shape for the particles to be emitted in. The G value
+lets you choose the shape from this list: 0 = Point, 1 = Circle, 2 = Box. The B value lets you
+choose the shape behaviour from this list: 0 = Emit around shape edges randomly, 1 = Fill randomly, 2 = Emit around shape edges uniformly
+
+33-Particle Emit Shape Size: VEC(24) - The size of the emitter shape.
+
+34-Particle Count: INT(8) - The amount of particles to emit (per quack)
+
+35-Particle Lifespan: FLOAT(2) - The lifespan of the particles, in seconds. (how long until they vanish. G = 128 would be 1 second)
+
+36-Particle Velocity: NNVEC(2) - The initial velocity of particles
+
+37-Particle Gravity: NNVEC(2) - The gravity applied to the particles
+
+38-Particle Friction: NVEC(1) - The friction applied to the particle. (Particle velocity is multiplied by the friction every frame, so if friction was 1,1 (the actual metapixel value would be 38,255,255), the particle would not slow down at all, and if it was 0.5,0.5 (actual metapixel value would be 38,128,128), then its speed would halve every frame)
+
+39-Particle Alpha: NVEC(1) - The transparency of the particle over it's life. G = Start alpha, B = End alpha
+
+40-Particle Scale: NVEC(2) - The scale of the particle over it's life. G = Start scale, B = End scale
+
+41-Particle Rotation: NVEC(36) - The rotation of the particle over it's life. G = Start rotation, B = end rotation.
+
+42-Particle Offset: VEC(16) - Additional offset for particles.
+
+43-Particle Is Background: BOOL - Renders the particles behind ducks
+
+44-Particle Anchor: BOOL - Anchors particles to the hat position when moving. (So if you are moving around,
+particles will move with you, as well as having their own velocity)
+
+45-Particle Is Animated: BOOL - Makes particles animate through their frames. Otherwise, a random frame will be
+used for the particle
+
+46-Particle Animation Is Loop: BOOL - Makes particles loop their animation
+
+47-Particle Animation Is Random Frame: BOOL - Makes particles start their animation on a random frame
+
+48-Particle Animation Speed: FLOAT(1) - How fast the particle switches between animation frames (Ranges from 0 frames/second to 24 frames/second)
+
+QUACK MODIFIERS:
+
+70-Is Wet Lips: BOOL - Modifies the quack sound to sound like "wet lips" 
+
+71-Is Mechanical Lips: BOOL - Modifies the quack to sound like "mechanical lips"
+
+RANDOMIZERS:
+
+100-Randomize Parameter X: SPECIAL
+101-Randomize Parameter Y: SPECIAL
+102-Randomize Parameters: SPECIAL
+
+All Randomizer metapixels function as NNVEC’s, ranging from -1 to +1, but multiply the
+previous non-randomizer metapixel’s G, B, (X/Y) values, or both, by a random value inside the given range. It’s a little confusing to explain, so let’s go through an example. If you had a particle velocity metapixel with values 2, 2 (the actual pixel would be 37,255,255), and put a randomize parameter X metapixel underneath it with values 1, 0.5 (the actual pixel would be 100,255,128),
+then every time a particle was spawned, it would get a Y velocity of 2, and a X velocity of 2 multiplied by a random number between 1 and 0.5 - so the max Y value would still be 2, and the min Y velocity it would get would be 1 (2 x 0.5).
+
+Hopefully that makes sense!

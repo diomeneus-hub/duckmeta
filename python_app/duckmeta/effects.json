@@ -1,0 +1,546 @@
+[
+  {
+    "id": 1,
+    "name": "Hat offset",
+    "group": "Hat",
+    "kind": "VEC",
+    "max": 16,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      128,
+      128
+    ],
+    "description": "Move the hat relative to the duck’s head. 128 encodes zero offset."
+  },
+  {
+    "id": 2,
+    "name": "Use duck color",
+    "group": "Hat",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Replace pure white and gray (157,157,157) in the hat with the selected duck colors."
+  },
+  {
+    "id": 10,
+    "name": "Cape offset",
+    "group": "Cape",
+    "kind": "VEC",
+    "max": 16,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      128,
+      128
+    ],
+    "description": "Move the cape attachment point."
+  },
+  {
+    "id": 11,
+    "name": "Cape in foreground",
+    "group": "Cape",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Draw the cape in front of the duck."
+  },
+  {
+    "id": 12,
+    "name": "Cape sway",
+    "group": "Cape",
+    "kind": "NNVEC",
+    "max": 1,
+    "labels": [
+      "Rotation",
+      "Weight"
+    ],
+    "defaults": [
+      128,
+      220
+    ],
+    "description": "Adjust cape rotation and weight. Preview uses an approximate cloth simulation."
+  },
+  {
+    "id": 13,
+    "name": "Cape wiggle",
+    "group": "Cape",
+    "kind": "NNVEC",
+    "max": 1,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      170,
+      150
+    ],
+    "description": "Adjust how much wind moves the cape."
+  },
+  {
+    "id": 14,
+    "name": "Cape taper · start",
+    "group": "Cape",
+    "kind": "FLOAT",
+    "max": 1,
+    "labels": [
+      "Width"
+    ],
+    "defaults": [
+      128,
+      0
+    ],
+    "description": "Width at the cape attachment, normalized from 0 to 1."
+  },
+  {
+    "id": 15,
+    "name": "Cape taper · end",
+    "group": "Cape",
+    "kind": "FLOAT",
+    "max": 1,
+    "labels": [
+      "Width"
+    ],
+    "defaults": [
+      255,
+      0
+    ],
+    "description": "Width at the bottom of the cape."
+  },
+  {
+    "id": 16,
+    "name": "Cape alpha · start",
+    "group": "Cape",
+    "kind": "FLOAT",
+    "max": 1,
+    "labels": [
+      "Opacity"
+    ],
+    "defaults": [
+      255,
+      0
+    ],
+    "description": "Opacity at the cape attachment."
+  },
+  {
+    "id": 17,
+    "name": "Cape alpha · end",
+    "group": "Cape",
+    "kind": "FLOAT",
+    "max": 1,
+    "labels": [
+      "Opacity"
+    ],
+    "defaults": [
+      255,
+      0
+    ],
+    "description": "Opacity at the bottom of the cape."
+  },
+  {
+    "id": 20,
+    "name": "Cape as trail",
+    "group": "Cape",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Render the cape along the duck’s recent path instead of hanging cloth."
+  },
+  {
+    "id": 30,
+    "name": "Emitter offset",
+    "group": "Particles",
+    "kind": "VEC",
+    "max": 16,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      128,
+      128
+    ],
+    "description": "Particle spawn position relative to the hat. This preview follows the reference’s signed VEC definition."
+  },
+  {
+    "id": 31,
+    "name": "Particle preset",
+    "group": "Particles",
+    "kind": "SPECIAL",
+    "max": 4,
+    "labels": [
+      "Unused G",
+      "Behavior"
+    ],
+    "defaults": [
+      0,
+      2
+    ],
+    "description": "Preset behavior overrides custom particle modifiers. Preview presets are approximations.",
+    "choices": {
+      "1": [
+        "None",
+        "Spit",
+        "Burst",
+        "Halo",
+        "Exclamation"
+      ]
+    }
+  },
+  {
+    "id": 32,
+    "name": "Emitter shape",
+    "group": "Particles",
+    "kind": "SPECIAL",
+    "max": 2,
+    "labels": [
+      "Shape",
+      "Distribution"
+    ],
+    "defaults": [
+      1,
+      0
+    ],
+    "description": "Choose a point, circle, or box and how particles fill it.",
+    "choices": {
+      "0": [
+        "Point",
+        "Circle",
+        "Box"
+      ],
+      "1": [
+        "Random edges",
+        "Random fill",
+        "Uniform edges"
+      ]
+    }
+  },
+  {
+    "id": 33,
+    "name": "Emitter size",
+    "group": "Particles",
+    "kind": "VEC",
+    "max": 24,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      136,
+      136
+    ],
+    "description": "Size of the emitter shape; preview uses the absolute decoded dimensions."
+  },
+  {
+    "id": 34,
+    "name": "Particle count",
+    "group": "Particles",
+    "kind": "INT",
+    "max": 8,
+    "labels": [
+      "Count"
+    ],
+    "defaults": [
+      134,
+      0
+    ],
+    "description": "Particles per quack. G minus 128, clamped to ±8. Negative counts emit nothing."
+  },
+  {
+    "id": 35,
+    "name": "Particle lifespan",
+    "group": "Particles",
+    "kind": "FLOAT",
+    "max": 2,
+    "labels": [
+      "Seconds"
+    ],
+    "defaults": [
+      170,
+      0
+    ],
+    "description": "Time before particles disappear."
+  },
+  {
+    "id": 36,
+    "name": "Particle velocity",
+    "group": "Particles",
+    "kind": "NNVEC",
+    "max": 2,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      150,
+      75
+    ],
+    "description": "Initial velocity of the particles."
+  },
+  {
+    "id": 37,
+    "name": "Particle gravity",
+    "group": "Particles",
+    "kind": "NNVEC",
+    "max": 2,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      128,
+      140
+    ],
+    "description": "Acceleration applied to particles."
+  },
+  {
+    "id": 38,
+    "name": "Particle friction",
+    "group": "Particles",
+    "kind": "NVEC",
+    "max": 1,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      250,
+      250
+    ],
+    "description": "Velocity multiplier each simulation frame. 255 keeps full velocity."
+  },
+  {
+    "id": 39,
+    "name": "Particle alpha",
+    "group": "Particles",
+    "kind": "NVEC",
+    "max": 1,
+    "labels": [
+      "Start",
+      "End"
+    ],
+    "defaults": [
+      255,
+      0
+    ],
+    "description": "Opacity over the particle’s lifetime."
+  },
+  {
+    "id": 40,
+    "name": "Particle scale",
+    "group": "Particles",
+    "kind": "NVEC",
+    "max": 2,
+    "labels": [
+      "Start",
+      "End"
+    ],
+    "defaults": [
+      100,
+      0
+    ],
+    "description": "Size over the particle’s lifetime."
+  },
+  {
+    "id": 41,
+    "name": "Particle rotation",
+    "group": "Particles",
+    "kind": "NVEC",
+    "max": 36,
+    "labels": [
+      "Start",
+      "End"
+    ],
+    "defaults": [
+      0,
+      40
+    ],
+    "description": "Rotation over the particle’s lifetime. The reference does not specify units; preview uses radians."
+  },
+  {
+    "id": 42,
+    "name": "Particle offset",
+    "group": "Particles",
+    "kind": "VEC",
+    "max": 16,
+    "labels": [
+      "Horizontal",
+      "Vertical"
+    ],
+    "defaults": [
+      128,
+      128
+    ],
+    "description": "Additional offset for particles."
+  },
+  {
+    "id": 43,
+    "name": "Particles behind duck",
+    "group": "Particles",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Render particles behind the duck."
+  },
+  {
+    "id": 44,
+    "name": "Anchor particles",
+    "group": "Particles",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Particles follow the hat as the duck moves."
+  },
+  {
+    "id": 45,
+    "name": "Animate particles",
+    "group": "Particles",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Animate through the 24 × 24 frames beneath the hat."
+  },
+  {
+    "id": 46,
+    "name": "Loop particle animation",
+    "group": "Particles",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Loop the animation instead of stopping on the last frame."
+  },
+  {
+    "id": 47,
+    "name": "Random animation start",
+    "group": "Particles",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Start animated particles on a random frame."
+  },
+  {
+    "id": 48,
+    "name": "Particle animation speed",
+    "group": "Particles",
+    "kind": "FLOAT",
+    "max": 1,
+    "labels": [
+      "Speed"
+    ],
+    "defaults": [
+      128,
+      0
+    ],
+    "description": "Normalized speed, mapped to 0–24 frames per second."
+  },
+  {
+    "id": 70,
+    "name": "Wet lips",
+    "group": "Quack",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Changes the game’s quack sound. Export supported; original game audio is not included."
+  },
+  {
+    "id": 71,
+    "name": "Mechanical lips",
+    "group": "Quack",
+    "kind": "BOOL",
+    "max": 1,
+    "labels": [],
+    "defaults": [
+      0,
+      0
+    ],
+    "description": "Changes the game’s quack sound. Export supported; original game audio is not included."
+  },
+  {
+    "id": 100,
+    "name": "Randomize X",
+    "group": "Randomizers",
+    "kind": "NNVEC",
+    "max": 1,
+    "labels": [
+      "Minimum multiplier",
+      "Maximum multiplier"
+    ],
+    "defaults": [
+      128,
+      255
+    ],
+    "description": "Multiplies the preceding non-randomizer’s decoded parameter(s) by a random value in this range. Order matters. Particle parameters are sampled per spawn."
+  },
+  {
+    "id": 101,
+    "name": "Randomize Y",
+    "group": "Randomizers",
+    "kind": "NNVEC",
+    "max": 1,
+    "labels": [
+      "Minimum multiplier",
+      "Maximum multiplier"
+    ],
+    "defaults": [
+      128,
+      255
+    ],
+    "description": "Multiplies the preceding non-randomizer’s decoded parameter(s) by a random value in this range. Order matters. Particle parameters are sampled per spawn."
+  },
+  {
+    "id": 102,
+    "name": "Randomize X + Y",
+    "group": "Randomizers",
+    "kind": "NNVEC",
+    "max": 1,
+    "labels": [
+      "Minimum multiplier",
+      "Maximum multiplier"
+    ],
+    "defaults": [
+      128,
+      255
+    ],
+    "description": "Multiplies the preceding non-randomizer’s decoded parameter(s) by a random value in this range. Order matters. Particle parameters are sampled per spawn."
+  }
+]

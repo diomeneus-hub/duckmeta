@@ -1,0 +1,21 @@
+{
+  "name": "duckmeta",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build && node scripts/standalone.mjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "fast-png": "8.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "typescript": "~5.9.3",
+    "vite": "8.3.5"
+  }
+}
