@@ -69,3 +69,14 @@ class GuiTests(unittest.TestCase):
             self.root.after_cancel(self.app.timer);self.app.animate();self.root.update()
             x,y=self.root.winfo_rootx(),self.root.winfo_rooty()
             ImageGrab.grab(bbox=(x,y,x+self.root.winfo_width(),y+self.root.winfo_height()),xdisplay=os.environ.get("DISPLAY")).save(output)
+
+    def test_export_defaults_to_detected_hats_folder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            hats=Path(directory)/"Documents/DuckGame/Custom/Hats"
+            with patch("duckmeta.app.find_hats_directory",return_value=hats), patch("duckmeta.app.filedialog.asksaveasfilename",return_value="") as dialog:
+                self.assertFalse(self.app.save_file())
+                self.assertEqual(dialog.call_args.kwargs["initialdir"],str(hats))
+                self.assertTrue(hats.is_dir())
+            with patch("duckmeta.app.filedialog.askopenfilename",return_value="") as dialog:
+                self.app.open_file()
+                self.assertNotIn("initialdir",dialog.call_args.kwargs)

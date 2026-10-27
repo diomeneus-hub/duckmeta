@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageTk
 
 from .model import ASSETS, BY_ID, EFFECTS, EMPTY, Hat, History, decode_value
 from .preview import COLORS, NEAREST, Preview
+from .paths import find_hats_directory, fallback_directory
 
 BG, PANEL, TEXT, MUTED, ACCENT = "#101719", "#182123", "#e5eae6", "#96a89c", "#bde899"
 
@@ -25,6 +26,7 @@ class App:
         root.configure(bg=BG)
         self.hat = hat or Hat.example()
         self.engine = Preview(self.hat)
+        self.export_directory = find_hats_directory()
         self.history = History()
         self.saved_slots = list(self.hat.slots)
         self.selected = next((i for i,p in enumerate(self.hat.slots) if p[3]),0)
@@ -37,7 +39,7 @@ class App:
         self._theme()
         self._build()
         self.refresh()
-        self.status.set(f"{self.hat.name} loaded. Open a PNG or start editing. All files stay on this computer.")
+        self.status.set(f"{self.hat.name} loaded. Default export: {self.export_directory}" if self.export_directory else f"{self.hat.name} loaded. Duck Game hats folder not detected; choose a folder when exporting.")
         root.protocol("WM_DELETE_WINDOW", self.close)
         for sequence, command in [("<Control-o>",self.open_file),("<Control-s>",self.save_file),
                                   ("<Control-z>",self.undo),("<Control-y>",self.redo)]:
@@ -311,7 +313,16 @@ class App:
             self.install_hat(hat);self.status.set(f"Loaded {filename}. {'Existing metadata preserved.' if hat.had_meta else 'One metadata column will be added on export.'}")
 
     def save_file(self):
-        filename=filedialog.asksaveasfilename(parent=self.root,title="Export hat PNG",initialfile=Path(self.hat.name).stem+"-meta.png",defaultextension=".png",filetypes=[("PNG hats","*.png")])
+        # Recheck if Steam/the game was first launched after the editor started.
+        self.export_directory = find_hats_directory() or self.export_directory
+        directory = self.export_directory or fallback_directory()
+        if self.export_directory:
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                messagebox.showwarning("Hats folder unavailable",f"Could not use {directory}:\n{exc}\n\nChoose another export folder.",parent=self.root)
+                directory = fallback_directory()
+        filename=filedialog.asksaveasfilename(parent=self.root,title="Export hat PNG",initialdir=str(directory),initialfile=Path(self.hat.name).stem+"-meta.png",defaultextension=".png",filetypes=[("PNG hats","*.png")])
         if not filename:return False
         temp=None
         try:

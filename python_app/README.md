@@ -32,6 +32,18 @@ py -3 -m venv .venv
 
 On later launches, double-click `Start-Duckmeta.bat`. It uses the local virtual environment when present. This package contains Python source, not a standalone Windows executable. Linux GUI tests have been run; Windows has not been tested on a Windows machine.
 
+## Default export folder on EndeavourOS / Linux
+
+**Export PNG** defaults to Duck Game's hats folder, normally:
+
+```text
+~/.local/share/Steam/steamapps/compatdata/312530/pfx/drive_c/users/steamuser/Documents/DuckGame/Custom/Hats
+```
+
+The editor detects regular Steam installs, `.steam` aliases, Flatpak Steam, and extra Steam libraries listed in `libraryfolders.vdf`. It also handles Proton's `My Documents` alias and existing profiles with a different username. The detected location appears in the startup status line. If a game prefix has a Documents folder but no hats folder yet, the app creates `DuckGame/Custom/Hats` when you export.
+
+Run Duck Game through Steam at least once to create its Proton prefix. If no prefix is found, the export dialog opens your own Documents/home folder and lets you choose a destination. **Open PNG is unchanged**; only the default export destination is set. You can always choose a different location in the export dialog. On Windows, the app checks Documents and OneDrive/Documents.
+
 ## How to use it
 
 - The wizard sample loads automatically. **Open PNG** reads your own hat sheet and existing metapixel column.
@@ -72,13 +84,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the five GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the six GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Twenty tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, and window/control/file-dialog callbacks. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Twenty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, and window/control/file-dialog callbacks. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
