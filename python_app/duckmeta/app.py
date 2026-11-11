@@ -16,6 +16,7 @@ from .model import ASSETS, BY_ID, EFFECTS, EMPTY, Hat, History, decode_value
 from .preview import COLORS, NEAREST, Preview
 from .paths import find_hats_directory, fallback_directory, find_content_directory, find_duck_textures
 from .sprites import DuckSprites, STATES, load_sprite_image
+from .templates import TemplateStore, selected_pixels, plan_apply
 from .clipboard import copy_png
 from .xnb import read_texture
 from .settings import settings_path, read_export_folder, write_export_folder
@@ -32,6 +33,7 @@ class App:
         self.hat = hat or Hat.example()
         self.engine = Preview(self.hat)
         self.preferences_path = preferences_path or settings_path()
+        self.templates = TemplateStore(self.preferences_path.parent / "templates")
         self.export_directory = read_export_folder(self.preferences_path) or find_hats_directory()
         self.content_directory = find_content_directory()
         self.held_keys = set()
@@ -126,8 +128,10 @@ class App:
         modifier_buttons=ttk.Frame(left);modifier_buttons.grid(sticky="ew",pady=(14,8))
         self.add_modifier_button=ttk.Button(modifier_buttons,text="+",width=4,command=self.add_dialog)
         self.add_modifier_button.pack(side="left",expand=True,fill="x",padx=(0,4))
-        self.remove_modifier_button=ttk.Button(modifier_buttons,text="−",width=4,command=self.remove)
+        self.remove_modifier_button=ttk.Button(modifier_buttons,text="-",width=4,command=self.remove)
         self.remove_modifier_button.pack(side="left",expand=True,fill="x")
+        ttk.Button(left,text="Apply template",command=self.apply_template_dialog).grid(sticky="ew",pady=4)
+        ttk.Button(left,text="Save as template",command=self.save_template_dialog).grid(sticky="ew",pady=4)
         ttk.Label(left,text="Order matters. Randomizers affect\nthe preceding non-randomizer.",style="Muted.TLabel",wraplength=195).grid(sticky="w",pady=6)
         middle=ttk.Frame(content,padding=10);middle.grid(row=0,column=1,sticky="nsew")
         middle.columnconfigure(0,weight=1);middle.rowconfigure(1,weight=1)
@@ -312,6 +316,70 @@ class App:
             if box.curselection() and self.add_effect(shown[box.curselection()[0]]):dialog.destroy()
         search.trace_add("write",populate);populate();box.bind("<Double-Button-1>",add);dialog.bind("<Return>",add)
         ttk.Button(frame,text="Add modifier",command=add,style="Accent.TButton").pack(fill="x")
+
+    def apply_template(self,name,pixels):
+        try:slots,conflicts=plan_apply(self.hat.slots,pixels)
+        except ValueError as exc:
+            messagebox.showerror("Cannot apply template",str(exc),parent=self.root);return False
+        if conflicts:
+            names=", ".join(BY_ID.get(i,{}).get("name",f"ID {i}") for i in conflicts)
+            if not messagebox.askyesno("Replace existing settings?",
+                f"Apply '{name}'? This replaces: {names}, including their existing randomizers. Other modifiers and artwork are kept. You can Undo this change.",parent=self.root):return False
+        if slots!=self.hat.slots:
+            self.history.record(self.hat.slots);self.hat.slots=slots
+            self.selected=next((i for i,p in enumerate(slots) if p[3]),0);self.refresh()
+        self.status.set(f"Applied template: {name}. Undo: Ctrl+Z.")
+        return True
+
+    def apply_template_dialog(self):
+        entries,errors=self.templates.list()
+        if errors:messagebox.showwarning("Some templates could not be read","\n".join(errors),parent=self.root)
+        if not entries:
+            messagebox.showinfo("No saved templates","Use Save as template to save selected metapixels first.",parent=self.root);return
+        dialog=tk.Toplevel(self.root);dialog.title("Apply template");dialog.geometry("440x420")
+        dialog.transient(self.root);dialog.grab_set()
+        frame=ttk.Frame(dialog,padding=16);frame.pack(fill="both",expand=True)
+        ttk.Label(frame,text="Choose a saved metadata template").pack(anchor="w")
+        box=tk.Listbox(frame,bg=PANEL,fg=TEXT,exportselection=False)
+        box.pack(fill="both",expand=True,pady=12)
+        for name,pixels in entries:box.insert("end",f"{name} · {len(pixels)} metapixels")
+        box.selection_set(0)
+        def apply(event=None):
+            if box.curselection() and self.apply_template(*entries[box.curselection()[0]]):dialog.destroy()
+        ttk.Button(frame,text="Apply",command=apply).pack(fill="x")
+        ttk.Button(frame,text="Cancel",command=dialog.destroy).pack(fill="x",pady=4)
+        box.bind("<Double-Button-1>",apply)
+
+    def save_template_dialog(self):
+        snapshot=list(self.hat.slots)
+        if not any(p[3] for p in snapshot):
+            messagebox.showinfo("No modifiers","Add a modifier before saving a template.",parent=self.root);return
+        dialog=tk.Toplevel(self.root);dialog.title("Save as template");dialog.geometry("480x540")
+        dialog.transient(self.root);dialog.grab_set()
+        frame=ttk.Frame(dialog,padding=16);frame.pack(fill="both",expand=True)
+        ttk.Label(frame,text="Template name").pack(anchor="w")
+        name=tk.StringVar();entry=ttk.Entry(frame,textvariable=name);entry.pack(fill="x",pady=6);entry.focus_set()
+        ttk.Label(frame,text="Select metapixels to save (keep randomizers with their target).",wraplength=440).pack(anchor="w",pady=6)
+        area=ttk.Frame(frame);area.pack(fill="both",expand=True)
+        canvas=tk.Canvas(area,bg=PANEL,highlightthickness=0)
+        scroll=ttk.Scrollbar(area,orient="vertical",command=canvas.yview)
+        canvas.configure(yscrollcommand=scroll.set);scroll.pack(side="right",fill="y");canvas.pack(side="left",fill="both",expand=True)
+        checks=ttk.Frame(canvas);window=canvas.create_window(0,0,window=checks,anchor="nw")
+        checks.bind("<Configure>",lambda e:canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",lambda e:canvas.itemconfigure(window,width=e.width))
+        choices={}
+        for i,pixel in enumerate(snapshot):
+            if not pixel[3]:continue
+            var=tk.BooleanVar(value=True);choices[i]=var
+            label=BY_ID.get(pixel[0],{}).get("name",f"Unknown {pixel[0]}")
+            ttk.Checkbutton(checks,text=f"Row {i+1}: {label} · {pixel}",variable=var).pack(anchor="w",pady=3)
+        def save():
+            try:self.templates.save(name.get(),selected_pixels(snapshot,[i for i,v in choices.items() if v.get()]))
+            except (ValueError,OSError) as exc:
+                messagebox.showerror("Cannot save template",str(exc),parent=dialog);return
+            self.status.set(f"Saved template: {name.get().strip()}");dialog.destroy()
+        ttk.Button(frame,text="Save template",command=save).pack(fill="x",pady=(12,4))
+        ttk.Button(frame,text="Cancel",command=dialog.destroy).pack(fill="x")
 
     def move(self,offset):
         target=self.selected+offset

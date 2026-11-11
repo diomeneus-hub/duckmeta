@@ -154,3 +154,40 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(self.app.hat.slots[self.app.selected][1],1)
         self.app.remove_modifier_button.invoke()
         self.assertEqual(self.app.hat.slots[self.app.selected],(0,0,0,0))
+
+    def test_template_conflict_cancel_apply_undo_redo(self):
+        before=list(self.app.hat.slots);art=self.app.hat.artwork.tobytes()
+        pixels=[(1,140,130,255),(70,0,0,255)]
+        with patch('duckmeta.app.messagebox.askyesno',return_value=False) as ask:
+            self.assertFalse(self.app.apply_template('test',pixels));ask.assert_called_once()
+        self.assertEqual(self.app.hat.slots,before);self.assertEqual(self.app.history.past,[])
+        with patch('duckmeta.app.messagebox.askyesno',return_value=True):
+            self.assertTrue(self.app.apply_template('test',pixels))
+        after=list(self.app.hat.slots);self.assertNotEqual(before,after)
+        self.assertEqual(self.app.hat.artwork.tobytes(),art)
+        self.app.undo();self.assertEqual(self.app.hat.slots,before)
+        self.app.redo();self.assertEqual(self.app.hat.slots,after)
+
+    def test_template_dialog_save_selection_and_apply(self):
+        from tkinter import ttk
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+        self.app.save_template_dialog();self.root.update()
+        dialog=next(w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel))
+        widgets=list(descendants(dialog))
+        entry=next(w for w in widgets if isinstance(w,ttk.Entry));entry.insert(0,'One modifier')
+        checks=[w for w in widgets if isinstance(w,ttk.Checkbutton)]
+        self.assertEqual(len(checks),sum(bool(p[3]) for p in self.app.hat.slots))
+        for check in checks[1:]:check.invoke()
+        next(w for w in widgets if isinstance(w,ttk.Button) and w.cget('text')=='Save template').invoke()
+        entries,errors=self.app.templates.list();self.assertEqual(errors,[])
+        self.assertEqual(entries,[('One modifier',[self.app.hat.slots[0]])])
+        self.app.hat.slots=[(0,0,0,0)]*self.app.hat.height;self.app.refresh()
+        self.app.apply_template_dialog();self.root.update()
+        dialog=next(w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel))
+        with patch('duckmeta.app.messagebox.askyesno') as ask:
+            next(w for w in descendants(dialog) if isinstance(w,ttk.Button) and w.cget('text')=='Apply').invoke()
+            ask.assert_not_called()
+        self.assertEqual(self.app.hat.slots[0],entries[0][1][0])

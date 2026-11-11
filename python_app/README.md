@@ -152,6 +152,14 @@ Enable Anchor particles (44), Animate particles (45), and Loop particle animatio
 
 Animation looping repeats the four images while that particle lives; it does not make emission or lifetime infinite. Start/end scale and rotation do not independently ping-pong. Repeated quacks can overlap particles. The built-in star's quack-held fade and continuous pulse cannot be guaranteed by this recipe; export and compare in-game.
 
+## Saved metadata templates
+
+Below the + / - modifier buttons, **Save as template** opens a named template dialog with a checkbox for every enabled metapixel. Save any selection; randomizers must be selected with their target modifier. Order, duplicates, unknown IDs, raw channels, and alpha are retained. Template names must be unique (case-insensitive).
+
+**Apply template** lists saved templates. It replaces matching modifier IDs and their attached randomizers, keeps unrelated modifiers and all artwork, and asks for confirmation before replacing existing settings. An identical template is a no-op. If the merged metadata cannot fit the hat's rows, nothing changes. Apply is a single Undo operation: use **Undo** at the top of the inspector or **Ctrl+Z**; **Ctrl+Y** redoes it. Saving a template does not change the hat.
+
+Templates persist as versioned JSON files under `~/.config/duckmeta/templates/` (or the platform configuration folder next to `settings.json`), not in Duck Game's hats folder or the downloaded application directory. These are metadata-only presets: particle artwork must already exist in the destination hat. Corrupt templates are reported and skipped.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
@@ -165,13 +173,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the twelve GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the fourteen GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Fifty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-three tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
