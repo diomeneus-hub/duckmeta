@@ -216,3 +216,44 @@ class GuiTests(unittest.TestCase):
         self.app.hold_quack.set(False);self.app.update_quack_hold()
         self.assertTrue(engine.quack_held)
         self.app.key_up(SimpleNamespace(keysym='q'));self.assertFalse(engine.quack_held)
+
+    def test_art_workshop_stroke_metadata_protection_and_undo(self):
+        from types import SimpleNamespace
+        self.app.edit_artwork();editor=self.app.art_editor;self.root.update()
+        before=self.app.hat.artwork.tobytes();slots=list(self.app.hat.slots)
+        editor.color=(12,230,45,255);z=editor.zoom.get()
+        editor.press(SimpleNamespace(x=1,y=1));editor.drag(SimpleNamespace(x=5*z+1,y=5*z+1));editor.release()
+        self.assertEqual(self.app.hat.artwork.getpixel((3,3)),editor.color)
+        self.assertEqual(len(editor.doc.past),1);self.assertTrue(self.app.dirty)
+        editor.press(SimpleNamespace(x=self.app.hat.width*z+1,y=1));editor.release()
+        self.assertEqual(self.app.hat.slots,slots);self.assertEqual(len(editor.doc.past),1)
+        editor.undo();self.assertEqual(self.app.hat.artwork.tobytes(),before)
+        editor.redo();self.assertEqual(self.app.hat.artwork.getpixel((3,3)),editor.color)
+        editor.tool.set('Eyedropper');editor.press(SimpleNamespace(x=3*z+1,y=3*z+1));self.assertEqual(editor.color,(12,230,45,255))
+        with patch('duckmeta.art_editor.messagebox.askyesnocancel',return_value=False):editor.close()
+
+    def test_art_project_export_guides_color_dialog_and_reopen(self):
+        from tkinter import ttk
+        self.app.edit_artwork();editor=self.app.art_editor;self.root.update()
+        editor.layer_action(editor.doc.add)
+        editor.color=(255,10,20,128);editor.doc.stroke((4,4),(4,4),editor.color);editor.changed()
+        art=self.app.hat.artwork.tobytes();slots=list(self.app.hat.slots)
+        editor.guides.set(False);editor.grid.set(False);editor.draw()
+        self.assertEqual(self.app.hat.artwork.tobytes(),art)
+        editor.choose_color();self.root.update()
+        dialog=next(w for w in editor.window.winfo_children() if isinstance(w,tk.Toplevel))
+        wheel=next(w for w in dialog.winfo_children() if isinstance(w,tk.Canvas))
+        wheel.event_generate('<Button-1>',x=196,y=100)
+        next(w for w in dialog.winfo_children() if isinstance(w,ttk.Button) and w.cget('text')=='Use color').invoke()
+        self.assertEqual(editor.color[:3],(255,0,0))
+        with tempfile.TemporaryDirectory() as folder:
+            project=Path(folder)/'star.duckmeta';png=Path(folder)/'star.png'
+            with patch('duckmeta.art_editor.filedialog.asksaveasfilename',return_value=str(project)):
+                self.assertTrue(editor.save_project())
+            with patch('duckmeta.app.filedialog.asksaveasfilename',return_value=str(png)):
+                self.assertTrue(self.app.save_file())
+            exported=Hat.read(png);self.assertEqual(exported.artwork.tobytes(),art);self.assertEqual(exported.slots,slots)
+            with patch('duckmeta.art_editor.filedialog.askopenfilename',return_value=str(project)):
+                editor.open_project()
+            self.assertEqual(len(editor.doc.layers),2);self.assertEqual(self.app.hat.artwork.tobytes(),art)
+        editor.close()

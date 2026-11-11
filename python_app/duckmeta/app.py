@@ -32,6 +32,8 @@ class App:
         root.configure(bg=BG)
         self.hat = hat or Hat.example()
         self.engine = Preview(self.hat)
+        self.art_document=None;self.art_editor=None;self.layer_project_dirty=False
+        self.saved_artwork=self.hat.artwork.tobytes()
         self.preferences_path = preferences_path or settings_path()
         self.templates = TemplateStore(self.preferences_path.parent / "templates", ASSETS / "templates")
         self.export_directory = read_export_folder(self.preferences_path) or find_hats_directory()
@@ -59,7 +61,7 @@ class App:
 
     @property
     def dirty(self):
-        return self.hat.slots != self.saved_slots
+        return self.hat.slots != self.saved_slots or self.hat.artwork.tobytes()!=self.saved_artwork
 
     def _theme(self):
         self.font = tkfont.nametofont("TkDefaultFont").actual("family")
@@ -88,6 +90,7 @@ class App:
     def _build(self):
         self.menubar=tk.Menu(self.root)
         self.file_menu=tk.Menu(self.menubar,tearoff=False)
+        self.file_menu.add_command(label="Pixel workshop...",command=self.edit_artwork)
         self.file_menu.add_command(label="Open PNG...",command=self.open_file,accelerator="Ctrl+O")
         self.file_menu.add_command(label="Load base hat...",command=self.load_base_hat,accelerator="Ctrl+B")
         self.file_menu.add_separator()
@@ -165,6 +168,9 @@ class App:
         self.sheet_menu.add_command(label="Copy sprite sheet",command=self.copy_sheet)
         self.sheet_menu.add_command(label="Copy sprite sheet with metadata",command=lambda:self.copy_sheet(True))
         self.sheet_label.bind("<Button-3>",self.show_sheet_menu)
+        self.sheet_label.bind("<Double-Button-1>",lambda event:self.edit_artwork())
+        self.sheet_menu.add_command(label="Edit artwork...",command=self.edit_artwork)
+        ttk.Button(middle,text="Edit artwork / layers",command=self.edit_artwork).grid(row=7,column=0,sticky="ew")
         ttk.Label(middle,text="Click preview: arrows move · Down crouches · Space jumps · hold Q to quack\nApproximate game physics. Check final behavior in Duck Game.",style="Muted.TLabel",justify="left").grid(row=6,column=0,sticky="w",pady=10)
         right=ttk.Frame(content,width=280,padding=12);right.grid(row=0,column=2,sticky="nsew",padx=(12,0));right.pack_propagate(False)
         bar=ttk.Frame(right);bar.pack(fill="x")
@@ -399,13 +405,22 @@ class App:
     def redo(self):
         if self.history.redo(self.hat):self.refresh();self.status.set("Redid last metadata edit.")
 
+    def edit_artwork(self):
+        if self.art_editor is not None:
+            self.art_editor.window.lift();return
+        from .art_editor import ArtEditor
+        self.art_editor=ArtEditor(self)
+
     def confirm_replace(self):
+        if self.layer_project_dirty and not messagebox.askokcancel("Unsaved layers",
+            "Continuing will discard unsaved editable layers. PNG exports are flattened. Cancel and use Pixel workshop → Save project to preserve layers.",parent=self.root):return False
         if not self.dirty:return True
         choice=messagebox.askyesnocancel("Unsaved edits","Export your current hat before continuing?",parent=self.root)
         if choice is None:return False
         return self.save_file() if choice else True
 
     def install_hat(self,hat):
+        self.art_document=None;self.layer_project_dirty=False;self.saved_artwork=hat.artwork.tobytes()
         self.hat=hat;self.engine.set_hat(hat);self.history=History();self.saved_slots=list(hat.slots)
         self.selected=next((i for i,p in enumerate(hat.slots) if p[3]),0);self.refresh()
 
@@ -555,7 +570,7 @@ class App:
         except Exception as exc:
             if temp:temp.unlink(missing_ok=True)
             messagebox.showerror("Could not export",str(exc),parent=self.root);return False
-        self.saved_slots=list(self.hat.slots);self.refresh()
+        self.saved_slots=list(self.hat.slots);self.saved_artwork=self.hat.artwork.tobytes();self.refresh()
         self.status.set(f"Saved {filename} · {self.hat.width+1} × {self.hat.height} · artwork preserved.")
         return True
 
@@ -646,7 +661,7 @@ class App:
         dialog=tk.Toplevel(self.root);dialog.title("Duckmeta help and reference");dialog.geometry("700x650");dialog.configure(bg=PANEL)
         text=tk.Text(dialog,bg=PANEL,fg=TEXT,wrap="word",font=(self.font,11),padx=20,pady=20)
         scroll=ttk.Scrollbar(dialog,command=text.yview);scroll.pack(side="right",fill="y");text.configure(yscrollcommand=scroll.set);text.pack(fill="both",expand=True)
-        intro=("DUCKMETA — PYTHON EDITION\n\nFile > Load base hat reads Texture2D XNBs from the game Content folder. Export always creates a custom PNG. Built-in effects are game code, not XNB metadata: Senpai uses sensei plus senpaiStar; Master uses master_glow. These overlays are not included in a custom PNG or simulated here. File > Load duck sprite sheet accepts raw 32-pixel grids or the supplied 387 x 781 annotated reference layout; that layout includes quack frames. Separate duckQuack textures can also be loaded. Preview > Animation settings displays numbered frames and lets you tune each animation. Game timing and default frame mappings are approximations until checked against your installation.\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. Undo and Redo affect metadata edits. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Particle rotation values represent tens of degrees. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 rock at (0,32), four 12×12 particle cells at (24,32), (36,32), (24,44), (36,44). Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
+        intro=("DUCKMETA — PYTHON EDITION\n\nFile > Load base hat reads Texture2D XNBs from the game Content folder. Export always creates a custom PNG. Built-in effects are game code, not XNB metadata: Senpai uses sensei plus senpaiStar; Master uses master_glow. These overlays are not included in a custom PNG or simulated here. File > Load duck sprite sheet accepts raw 32-pixel grids or the supplied 387 x 781 annotated reference layout; that layout includes quack frames. Separate duckQuack textures can also be loaded. Preview > Animation settings displays numbered frames and lets you tune each animation. Game timing and default frame mappings are approximations until checked against your installation.\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. The inspector Undo/Redo affect metadata. Pixel workshop has stroke/layer Undo/Redo and a live duck view. Double-click its color swatch for hue/saturation, brightness, and alpha. Save a .duckmeta project to retain layers; PNG flattens visible layers. Template guides and layout grids never export. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Particle rotation values represent tens of degrees. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 rock at (0,32), four 12×12 particle cells at (24,32), (36,32), (24,44), (36,44). Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
         text.insert("end",intro+(ASSETS/"metapixels-reference.txt").read_text(encoding="utf-8"));text.configure(state="disabled")
 
     def close(self):

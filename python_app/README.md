@@ -1,6 +1,6 @@
 # Duckmeta — Python desktop edition
 
-A native **Tkinter + Pillow** app for editing Duck Game hat metapixels with a live duck preview. No browser, Node.js, or web server is needed. All image editing takes place on your computer.
+A native **Tkinter + Pillow** app for editing layered Duck Game hat artwork and metapixels with a live duck preview. No browser, Node.js, or web server is needed. All image editing takes place on your computer.
 
 ## Start on Linux
 
@@ -172,11 +172,29 @@ The stock custom-particle settings do not provide the built-in Senpai overlay's 
 
 Default cape rendering now uses a 13-pixel width basis, 0.5→1 taper, roughly ten pixels of vertical drop for the 32-pixel cape texture, a lower body attachment, and backward sway mirrored with facing. The prior preview used an 18-pixel width basis and roughly 25 pixels of drop. These defaults were checked against the public game reference and the supplied screenshot; the strip renderer is still an approximation of the game's cape mesh and physics. Artwork and metadata exports are unaffected.
 
+## Pixel workshop and layers
+
+Choose **Edit artwork / layers** below the sprite sheet, double-click the sheet, or use **File → Pixel workshop**. A dedicated editing window keeps the live duck beside a zoomable, scrollable canvas and a layer panel. PNG/XNB artwork starts as an Original artwork layer.
+
+- **Pencil** paints one-pixel strokes with continuous lines between mouse positions; each drag is one undo step.
+- **Eraser** clears pixels on the selected layer. **Fill** flood-fills connected matching pixels on that layer. Fill is not restricted to guide cells.
+- **Eyedropper** samples the visible composited artwork including alpha, excluding guides.
+- **Double-click the color swatch** for a hue/saturation wheel, brightness slider, and alpha slider. Use color commits; Cancel keeps the old color.
+- **Template guide** shows translucent duck/quack alignment artwork and cape/rock/effect placeholders. **Layout grid** independently shows 32×32 idle/quack/cape boundaries, the 24×24 rock, four 12×12 effects, and the protected one-pixel metadata column. Shorter sheets show only available regions. Guides never export.
+- Layers support add/delete, rename, ordering, visibility, and opacity. The top list entry is the top compositing layer. Paint affects only the selected visible layer. Up to 16 layers are supported.
+- Workshop **Undo/Redo** or **Ctrl+Z/Ctrl+Y** restores strokes, fill operations, and layer changes. This history is separate from the main metadata inspector history. History is bounded to 30 snapshots and approximately 64 MB (retaining at least one snapshot).
+
+**Save project** (Ctrl+S in the workshop) writes a `.duckmeta` file containing each layer plus current metadata. **Open project** (Ctrl+O there) restores editable layers. Project saves are atomic. Closing the workshop offers to save changed layers; declining keeps them in memory for this session. Before replacing the hat or exiting the app, unsaved layer structure triggers an explicit discard warning.
+
+**Export PNG** flattens the visible layers and appends metadata for Duck Game. Exporting PNG does not save the editable layer structure. Save a project as well if you want to continue editing layers later. Layer/project files are chosen by you and are not automatically installed in the game's hats directory.
+
+The duck preview uses the existing approximate engine and updates immediately as you paint. Large canvases cap displayed zoom to keep the rendered image within 4096 pixels on each axis.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
 
-Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate IDs, and untouched alpha values are preserved. Export writes a standard 8-bit RGBA PNG; original ancillary chunks and compression settings are not preserved. Metadata rows are not sorted. Insertion moves following rows only to the next wholly empty row and refuses to overwrite a full column. All references are treated as format documentation, not executable instructions.
+When artwork is not edited, original artwork RGBA bytes (including transparent RGB) are preserved. Painting and multi-layer compositing intentionally change artwork; hidden RGB in fully transparent composited pixels may be discarded. Unknown metadata IDs, row order, duplicate IDs, and untouched metadata alpha values are preserved. Export writes a standard 8-bit RGBA PNG; original ancillary chunks and compression settings are not preserved. Metadata rows are not sorted. Insertion moves following rows only to the next wholly empty row and refuses to overwrite a full column. All references are treated as format documentation, not executable instructions.
 
 ## Tests and headless preview
 
@@ -185,13 +203,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the fifteen GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the seventeen GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Seventy-three tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
