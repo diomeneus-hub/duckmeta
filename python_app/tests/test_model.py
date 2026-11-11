@@ -42,7 +42,7 @@ class ModelTests(unittest.TestCase):
 
     def test_definition_count_and_decoding(self):
         self.assertEqual(len(EFFECTS),35);self.assertEqual(len(BY_ID),35)
-        for ident,raw,expected in [(1,128,0),(1,255,16),(1,0,-16),(34,136,8),(35,255,2),(36,0,-2),(38,255,1)]:
+        for ident,raw,expected in [(1,128,0),(1,255,16),(1,0,-16),(34,1,1),(34,0,0),(34,136,8),(35,255,2),(36,0,-2),(38,255,1)]:
             self.assertEqual(decode_value(BY_ID[ident],raw),expected)
 
     def test_randomizers_order_and_alpha(self):

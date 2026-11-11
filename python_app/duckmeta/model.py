@@ -19,7 +19,9 @@ EMPTY = (0, 0, 0, 0)
 
 def decode_value(definition, raw):
     kind, maximum = definition["kind"], definition["max"]
-    if kind in ("VEC", "INT"):
+    if kind == "INT":
+        return min(maximum, raw)
+    if kind == "VEC":
         return max(-maximum, min(maximum, raw - 128))
     if kind in ("NVEC", "FLOAT"):
         return raw / 255 * maximum
@@ -124,7 +126,7 @@ class Hat:
     def example(cls):
         hat = cls.read(ASSETS / "wizard.png")
         demo = [(1,128,128,255),(10,128,128,255),(12,128,220,255),(13,180,145,255),
-                (34,134,0,255),(35,170,0,255),(36,150,80,255),(100,0,255,255),
+                (34,6,0,255),(35,170,0,255),(36,150,80,255),(100,0,255,255),
                 (37,128,138,255),(39,255,0,255),(40,100,20,255)]
         hat.slots[:len(demo)] = demo
         return hat

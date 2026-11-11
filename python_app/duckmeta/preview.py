@@ -263,4 +263,4 @@ class Preview:
             x,y=p.x,p.y
             if 44 in p.values: x+=self.x-p.origin[0];y+=self.y-p.origin[1]
             self.sprite(image,source,x-source.width*scale/2,y-source.height*scale/2,scale,
-                        alpha=clamp(a[0]+(a[1]-a[0])*f),rotation=r[0]+(r[1]-r[0])*f)
+                        alpha=clamp(a[0]+(a[1]-a[0])*f),rotation=math.radians(10*(r[0]+(r[1]-r[0])*f)))

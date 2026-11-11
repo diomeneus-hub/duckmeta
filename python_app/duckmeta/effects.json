@@ -257,10 +257,10 @@
       "Count"
     ],
     "defaults": [
-      134,
+      6,
       0
     ],
-    "description": "Particles per quack. G minus 128, clamped to ±8. Negative counts emit nothing."
+    "description": "Particles per quack. G is the count, clamped to 0–8; 0 emits nothing."
   },
   {
     "id": 35,
@@ -371,7 +371,7 @@
       0,
       40
     ],
-    "description": "Rotation over the particle’s lifetime. The reference does not specify units; preview uses radians."
+    "description": "Start and end rotation in tens of degrees: 36 means one full 360-degree turn over the particle lifetime."
   },
   {
     "id": 42,
@@ -426,7 +426,7 @@
       0,
       0
     ],
-    "description": "Animate through the 24 × 24 frames beneath the hat."
+    "description": "Animate through the four 12 × 12 particle cells beside the rock image."
   },
   {
     "id": 46,

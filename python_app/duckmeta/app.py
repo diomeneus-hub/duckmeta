@@ -123,7 +123,11 @@ class App:
         scroll=ttk.Scrollbar(tree_frame,orient="vertical",command=self.stack.yview);self.stack.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right",fill="y");self.stack.pack(fill="both",expand=True)
         self.stack.bind("<<TreeviewSelect>>",self.select)
-        ttk.Button(left,text="+ Add modifier",command=self.add_dialog).grid(sticky="ew",pady=(14,8))
+        modifier_buttons=ttk.Frame(left);modifier_buttons.grid(sticky="ew",pady=(14,8))
+        self.add_modifier_button=ttk.Button(modifier_buttons,text="+",width=4,command=self.add_dialog)
+        self.add_modifier_button.pack(side="left",expand=True,fill="x",padx=(0,4))
+        self.remove_modifier_button=ttk.Button(modifier_buttons,text="−",width=4,command=self.remove)
+        self.remove_modifier_button.pack(side="left",expand=True,fill="x")
         ttk.Label(left,text="Order matters. Randomizers affect\nthe preceding non-randomizer.",style="Muted.TLabel",wraplength=195).grid(sticky="w",pady=6)
         middle=ttk.Frame(content,padding=10);middle.grid(row=0,column=1,sticky="nsew")
         middle.columnconfigure(0,weight=1);middle.rowconfigure(1,weight=1)
@@ -217,7 +221,7 @@ class App:
                     combo.bind("<<ComboboxSelected>>",lambda event,c=channel,w=combo:self.change_channel(c,int(w.get().split(":")[0])))
                 else:
                     value_label=ttk.Label(self.inspector,text=self.value_text(definition,p[channel]),foreground=ACCENT);value_label.pack(anchor="e")
-                    low,high=(128-definition["max"],128+definition["max"]) if definition["kind"] in ("VEC","INT") else (0,255)
+                    low,high=(128-definition["max"],128+definition["max"]) if definition["kind"] == "VEC" else (0,definition["max"]) if definition["kind"] == "INT" else (0,255)
                     scale=ttk.Scale(self.inspector,from_=low,to=high,orient="horizontal")
                     scale.set(p[channel]);scale.configure(command=lambda v,c=channel,l=value_label,d=definition:self.slide(c,v,l,d))
                     scale.pack(fill="x",padx=(0,8));self.slider_widgets.append(scale)
@@ -236,7 +240,6 @@ class App:
         order=ttk.Frame(self.inspector);order.pack(fill="x",pady=18)
         ttk.Button(order,text="Move up",command=lambda:self.move(-1),state="normal" if self.selected else "disabled").pack(side="left")
         ttk.Button(order,text="Move down",command=lambda:self.move(1),state="normal" if self.selected<self.hat.height-1 else "disabled").pack(side="right",padx=(0,5))
-        ttk.Button(self.inspector,text="Remove modifier",command=self.remove).pack(fill="x",padx=(0,5),pady=(0,12))
         if p[0] in (70,71):
             ttk.Label(self.inspector,text="Audio flags export normally. Original Duck Game sounds are not included.",wraplength=230,style="Muted.TLabel").pack(anchor="w",pady=8)
         if p[0] in (100,101,102):
@@ -246,6 +249,7 @@ class App:
     @staticmethod
     def value_text(definition,raw):
         value=decode_value(definition,raw)
+        if definition["id"]==41:return f"{value*10:.1f}°  ·  byte {raw}"
         return f"{value*24:.1f} fps  ·  byte {raw}" if definition["id"]==48 else f"{value:.2f}  ·  byte {raw}"
 
     def slide(self,channel,value,label,definition):
@@ -336,7 +340,8 @@ class App:
         self.selected=next((i for i,p in enumerate(hat.slots) if p[3]),0);self.refresh()
 
     def open_file(self):
-        filename=filedialog.askopenfilename(parent=self.root,title="Open a Duck Game hat",filetypes=[("PNG hats","*.png")])
+        self.export_directory = self.export_directory or find_hats_directory()
+        filename=filedialog.askopenfilename(parent=self.root,title="Open a Duck Game hat",initialdir=str(self.export_directory or fallback_directory()),filetypes=[("PNG hats","*.png")])
         if not filename:return
         try:hat=Hat.read(filename)
         except Exception as exc:
@@ -565,7 +570,7 @@ class App:
         dialog=tk.Toplevel(self.root);dialog.title("Duckmeta help and reference");dialog.geometry("700x650");dialog.configure(bg=PANEL)
         text=tk.Text(dialog,bg=PANEL,fg=TEXT,wrap="word",font=(self.font,11),padx=20,pady=20)
         scroll=ttk.Scrollbar(dialog,command=text.yview);scroll.pack(side="right",fill="y");text.configure(yscrollcommand=scroll.set);text.pack(fill="both",expand=True)
-        intro=("DUCKMETA — PYTHON EDITION\n\nFile > Load base hat reads Texture2D XNBs from the game Content folder. Export always creates a custom PNG. Built-in effects are game code, not XNB metadata: Senpai uses sensei plus senpaiStar; Master uses master_glow. These overlays are not included in a custom PNG or simulated here. File > Load duck sprite sheet accepts raw 32-pixel grids or the supplied 387 x 781 annotated reference layout; that layout includes quack frames. Separate duckQuack textures can also be loaded. Preview > Animation settings displays numbered frames and lets you tune each animation. Game timing and default frame mappings are approximations until checked against your installation.\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. Undo and Redo affect metadata edits. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Rotation uses radians. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 rock at (0,32), four 12×12 particle cells at (24,32), (36,32), (24,44), (36,44). Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
+        intro=("DUCKMETA — PYTHON EDITION\n\nFile > Load base hat reads Texture2D XNBs from the game Content folder. Export always creates a custom PNG. Built-in effects are game code, not XNB metadata: Senpai uses sensei plus senpaiStar; Master uses master_glow. These overlays are not included in a custom PNG or simulated here. File > Load duck sprite sheet accepts raw 32-pixel grids or the supplied 387 x 781 annotated reference layout; that layout includes quack frames. Separate duckQuack textures can also be loaded. Preview > Animation settings displays numbered frames and lets you tune each animation. Game timing and default frame mappings are approximations until checked against your installation.\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. Undo and Redo affect metadata edits. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Particle rotation values represent tens of degrees. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 rock at (0,32), four 12×12 particle cells at (24,32), (36,32), (24,44), (36,44). Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
         text.insert("end",intro+(ASSETS/"metapixels-reference.txt").read_text(encoding="utf-8"));text.configure(state="disabled")
 
     def close(self):

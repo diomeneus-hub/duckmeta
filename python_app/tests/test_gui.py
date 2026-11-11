@@ -80,7 +80,7 @@ class GuiTests(unittest.TestCase):
                 self.assertTrue(hats.is_dir())
             with patch("duckmeta.app.filedialog.askopenfilename",return_value="") as dialog:
                 self.app.open_file()
-                self.assertNotIn("initialdir",dialog.call_args.kwargs)
+                self.assertEqual(dialog.call_args.kwargs["initialdir"],str(hats))
 
     def test_file_menu_loads_lzx_hat_and_preserves_original(self):
         from xnb_fixtures import texture_payload, xnb
@@ -143,3 +143,14 @@ class GuiTests(unittest.TestCase):
                 self.assertEqual(image.tobytes(),expected.tobytes())
         with patch('duckmeta.app.copy_png',side_effect=RuntimeError('missing helper')),patch('duckmeta.app.messagebox.showerror') as error:
             self.app.copy_sheet();error.assert_called_once()
+
+    def test_compact_modifier_controls_and_particle_count_range(self):
+        self.assertIs(self.app.add_modifier_button.master,self.app.remove_modifier_button.master)
+        self.app.add_effect(34);self.root.update()
+        slider=self.app.slider_widgets[0]
+        self.assertEqual(float(slider.cget('from')),0)
+        self.assertEqual(float(slider.cget('to')),8)
+        slider.set(1);self.root.update()
+        self.assertEqual(self.app.hat.slots[self.app.selected][1],1)
+        self.app.remove_modifier_button.invoke()
+        self.assertEqual(self.app.hat.slots[self.app.selected],(0,0,0,0))

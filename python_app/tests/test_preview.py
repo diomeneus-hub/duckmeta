@@ -103,3 +103,17 @@ class PreviewTests(unittest.TestCase):
             self.assertEqual(tuple(b-a for a,b in zip(before,after)),(8*facing,6,8*facing,6))
         self.hat.slots[0]=(12,255,255,255);self.preview.rebuild()
         self.assertGreater(bounds()[3]-bounds()[1],20)
+
+    def test_single_particle_and_one_turn_rotation(self):
+        import math
+        from unittest.mock import patch
+        from PIL import Image
+        self.hat.artwork.putpixel((24,32),(255,255,255,255))
+        self.hat.slots=[EMPTY]*self.hat.height
+        self.hat.slots[:3]=[(34,1,0,255),(35,255,0,255),(41,0,255,255)]
+        self.preview.rebuild();self.preview.quack()
+        self.assertEqual(len(self.preview.particles),1)
+        particle=self.preview.particles[0];particle.age=particle.life/2
+        with patch.object(self.preview,'sprite') as draw:
+            self.preview.draw_particles(Image.new('RGBA',(384,240)),False)
+            self.assertAlmostEqual(draw.call_args.kwargs['rotation'],math.pi)

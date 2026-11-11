@@ -42,6 +42,8 @@ On later launches, double-click `Start-Duckmeta.bat`. It uses the local virtual 
 
 The editor detects regular Steam installs, `.steam` aliases, Flatpak Steam, extra Steam libraries, and alternate Proton usernames. It prefers an existing `AppData/Roaming/DuckGame` save root over legacy Documents saves, including when an old Documents folder contains exported hats. It only creates `Custom/Hats` under a detected game save root. Windows uses `%APPDATA%`; native Linux uses `$XDG_CONFIG_HOME` (normally `~/.config`).
 
+**Open PNG** starts in the same folder as Export PNG. The adjacent **+ / −** buttons below the metadata list add and remove modifiers.
+
 Use **File → Choose export folder...** to save an explicit default across restarts. Preferences live in `~/.config/duckmeta/settings.json` (or your platform's application configuration folder). Automatic detection does not override this choice. The export dialog also lets you pick a different destination for an individual file.
 
 If you previously exported into the Proton Documents folder, copy those PNGs into the active AppData hats folder and restart the game. Check `Documents/DuckGame/where_is_my_save.txt` in the same prefix for the game's migration notice. Legacy installs may still use Documents; detection falls back to it when no modern save root exists. If no game save root is found, choose the destination manually.
@@ -95,7 +97,7 @@ You can open a hat directly with `python duckmeta.py path/to/hat.png`.
 
 The engine uses a fixed 60 Hz simulation and renders through Pillow into a Tk canvas at approximately 30 frames per second. It includes hat offsets and tinting, imported duck animation frames, cape deformation and trails, particle shapes/presets, velocity/gravity/friction, alpha, scale, rotation, anchoring, layer order and sprite animation.
 
-It is an **independent approximation**, not Duck Game itself. Defaults, attachment points, motion, particle presets and cloth physics need an in-game comparison. IDs 70/71 are editable/exportable but **audio playback is not implemented**. Non-particle randomizers use the range midpoint for a stable preview; particle randomizers are sampled per spawn. Rotation is treated as radians because the reference doesn't specify units. Present preset 31 overrides custom particle modifiers; B selects the preset and None emits nothing. VEC uses signed offsets around 128, including emitter offset 30. INT particle counts use G minus 128, clamped to ±8; negative counts emit nothing.
+It is an **independent approximation**, not Duck Game itself. Defaults, attachment points, motion, particle presets and cloth physics need an in-game comparison. IDs 70/71 are editable/exportable but **audio playback is not implemented**. Non-particle randomizers use the range midpoint for a stable preview; particle randomizers are sampled per spawn. Particle rotation is decoded in tens of degrees (36 = 360°). Present preset 31 overrides custom particle modifiers; B selects the preset and None emits nothing. VEC uses signed offsets around 128, including emitter offset 30. Particle count uses raw G, clamped to 0–8; zero emits nothing. Older editor versions incorrectly displayed G minus 128; existing bytes are preserved, so check count in older hats.
 
 The sprite layout used in the preview is:
 
@@ -128,6 +130,28 @@ Clipboard routing, error handling, and the copied PNG's dimensions/pixels are te
 
 Hat offset is subtracted from the head position, matching the game's equipment placement: increasing G moves backward and increasing B moves up. Horizontal movement reverses when the duck faces left. Cape and emitter offsets are additive, so they must not all be inverted. Signed normalized vector values now have exact zero at byte 128 and endpoints −1/+1. Cape sway uses horizontal displacement and vertical length, not rotation; cape cloth remains approximate. Exported raw metadata is unchanged by these preview corrections, so existing hats need no byte migration.
 
+## Senpai-style star experiment
+
+This is an unverified custom-particle approximation, not the built-in Senpai overlay. Redraw the star inside four transparent 12×12 cells at (24,32), (36,32), (24,44), (36,44). Keep the centers aligned. Use small → medium → large → medium artwork for a repeating pulse (for example 6, 8, 10, 8 pixels wide). The 24×24 cell is the rock, not particle art.
+
+Remove Particle preset (31); do not select its None option, which disables emission in this preview. Suggested raw G/B bytes (metadata alpha stays 255):
+
+| Modifier | G | B | Purpose |
+| --- | ---: | ---: | --- |
+| Particle count (34) | 1 | 0 | One star per quack |
+| Lifespan (35) | 255 | 0 | Two seconds |
+| Velocity (36) | 128 | 128 | Stationary |
+| Gravity (37) | 128 | 128 | No falling |
+| Alpha (39) | 128 | 128 | About 50% opacity throughout |
+| Scale (40) | 128 | 128 | Approximately original size; pulse is in artwork |
+| Rotation (41) | 0 | 255 | One turn over its lifetime |
+| Emitter offset (30) | 130 | 132 | Start around +2/+4; tune placement in-game |
+| Emitter shape (32) | 0 | 0 | Point |
+
+Enable Anchor particles (44), Animate particles (45), and Loop particle animation (46). Leave Random animation start (47) and Particles behind duck (43) absent initially. Start Animation speed (48) low and adjust visually. Keep the star art opaque if using the Alpha modifier above, to avoid halving opacity twice.
+
+Animation looping repeats the four images while that particle lives; it does not make emission or lifetime infinite. Start/end scale and rotation do not independently ping-pong. Repeated quacks can overlap particles. The built-in star's quack-held fade and continuous pulse cannot be guaranteed by this recipe; export and compare in-game.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
@@ -141,13 +165,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the eleven GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the twelve GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Fifty-five tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Fifty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
