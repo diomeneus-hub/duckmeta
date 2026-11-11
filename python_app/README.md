@@ -160,6 +160,10 @@ Below the + / - modifier buttons, **Save as template** opens a named template di
 
 Templates persist as versioned JSON files under `~/.config/duckmeta/templates/` (or the platform configuration folder next to `settings.json`), not in Duck Game's hats folder or the downloaded application directory. These are metadata-only presets: particle artwork must already exist in the destination hat. Corrupt templates are reported and skipped.
 
+Particle scale metadata accepts 0–2, but Duck Game clamps the interpolated visible scale to 0–1. The preview now applies this clamp too: 1→2 stays full-size, while 0→2 grows to full-size and then stays there. Existing raw metadata is preserved.
+
+The stock custom-particle settings do not provide the built-in Senpai overlay's held-quack lifetime and release behavior. Passive particle conditions (110–113) in the cited reference source are marked as Duck Game Rebuilt additions; do not rely on them in regular Steam Duck Game. A static star drawn into the quack hat frame can follow the pose, but cannot continuously spin or pulse like the built-in overlay.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
@@ -179,7 +183,7 @@ Without a display, the fourteen GUI tests are explicitly skipped and model/rende
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-three tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-four tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 

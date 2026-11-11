@@ -355,7 +355,7 @@
       100,
       0
     ],
-    "description": "Size over the particle’s lifetime."
+    "description": "Size over the particle lifetime. Metadata accepts 0–2, but visible scale is clamped to 0–1. Values above 1 reach full size sooner; they cannot enlarge the artwork."
   },
   {
     "id": 41,

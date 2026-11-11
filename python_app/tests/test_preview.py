@@ -117,3 +117,18 @@ class PreviewTests(unittest.TestCase):
         with patch.object(self.preview,'sprite') as draw:
             self.preview.draw_particles(Image.new('RGBA',(384,240)),False)
             self.assertAlmostEqual(draw.call_args.kwargs['rotation'],math.pi)
+
+    def test_particle_scale_clamps_after_interpolation(self):
+        from unittest.mock import patch
+        from PIL import Image
+        self.hat.artwork.putpixel((24,32),(255,255,255,255))
+        self.hat.slots=[EMPTY]*self.hat.height
+        self.hat.slots[:2]=[(34,1,0,255),(35,255,0,255)]
+        self.preview.rebuild();self.preview.quack()
+        particle=self.preview.particles[0]
+        for endpoints,fraction,expected in [([0,2],0,0),([0,2],.25,.5),([0,2],.75,1),([1,2],.5,1)]:
+            particle.values[40]=endpoints;particle.age=particle.life*fraction
+            with patch.object(self.preview,'sprite') as draw:
+                self.preview.draw_particles(Image.new('RGBA',(384,240)),False)
+                if expected==0:draw.assert_not_called()
+                else:self.assertAlmostEqual(draw.call_args.args[4],expected*self.preview.zoom)

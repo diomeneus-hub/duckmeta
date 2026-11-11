@@ -251,7 +251,7 @@ class Preview:
         for p in self.particles:
             if (43 in p.values)!=background or p.life<=0: continue
             f=clamp(p.age/p.life);a=p.values.get(39,[1,0]);s=p.values.get(40,[.5,0]);r=p.values.get(41,[0,0])
-            scale=max(0,s[0]+(s[1]-s[0])*f)*self.zoom
+            scale=clamp(s[0]+(s[1]-s[0])*f)*self.zoom
             if not scale: continue
             frame=p.frame
             if self.frames:
