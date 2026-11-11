@@ -12,7 +12,7 @@ class PathTests(unittest.TestCase):
 
     def documents(self, library, profile="steamuser", name="Documents"):
         path = library / "steamapps/compatdata/312530/pfx/drive_c/users" / profile / name
-        path.mkdir(parents=True)
+        (path / "DuckGame").mkdir(parents=True)
         return path
 
     def test_standard_proton_folder_without_creating_hats(self):
@@ -60,3 +60,15 @@ class PathTests(unittest.TestCase):
         for path in (normal,quack,content/'Textures/duckArm.xnb'):path.write_bytes(b'placeholder')
         self.assertEqual(find_content_directory(self.home),content)
         self.assertEqual(find_duck_textures(content),(normal,quack))
+
+    def test_modern_proton_wins_over_legacy_exports(self):
+        legacy = self.documents(self.home / ".local/share/Steam")
+        (legacy / HATS).mkdir(parents=True)
+        modern = legacy.parent / "AppData/Roaming/DuckGame"
+        modern.mkdir(parents=True)
+        self.assertEqual(find_hats_directory(self.home,"posix"), modern / "Custom/Hats")
+
+    def test_empty_documents_does_not_establish_save_root(self):
+        path=self.home/".local/share/Steam/steamapps/compatdata/312530/pfx/drive_c/users/steamuser/Documents"
+        path.mkdir(parents=True)
+        self.assertIsNone(find_hats_directory(self.home,"posix"))

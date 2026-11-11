@@ -26,41 +26,36 @@ def _library_paths(vdf: Path):
 
 
 def find_hats_directory(home: Path | None = None, platform: str | None = None) -> Path | None:
-    """Return a detected hats folder without creating anything.
+    """Prefer modern game save roots; use Documents only for legacy installs.
 
-    Existing hats folders win over empty-prefix candidates. If a verified game's
-    Documents folder exists, its missing Custom/Hats folder can be created on export.
+    An existing DuckGame root is required. Merely having a Proton Documents
+    directory does not establish that the game stores its saves there.
     """
     home = Path.home() if home is None else Path(home)
     platform = os.name if platform is None else platform
-    documents = []
+    modern, legacy = [], []
     if platform == "nt":
-        documents.extend([home / "Documents", home / "OneDrive" / "Documents"])
+        modern.append(Path(os.environ.get("APPDATA", home / "AppData/Roaming")))
+        legacy.extend([home / "Documents", home / "OneDrive/Documents"])
     else:
-        roots = [home / ".local/share/Steam", home / ".steam/steam", home / ".steam/root",
-                 home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
-                 home / ".var/app/com.valvesoftware.Steam/data/Steam"]
-        libraries = list(roots)
-        for root in roots:
-            for vdf in [root / "steamapps/libraryfolders.vdf", root / "config/libraryfolders.vdf"]:
-                libraries.extend(_library_paths(vdf))
-        seen = set()
-        for library in libraries:
+        for library in steam_libraries(home):
+            users = library / "steamapps/compatdata" / APP_ID / "pfx/drive_c/users"
             try:
-                resolved = library.resolve()
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                users = library / "steamapps/compatdata" / APP_ID / "pfx/drive_c/users"
                 profiles = [users / "steamuser"]
                 if users.is_dir():
-                    profiles.extend(p for p in sorted(users.iterdir()) if p.is_dir() and p.name not in ("steamuser", "Public"))
+                    profiles.extend(p for p in sorted(users.iterdir())
+                                    if p.is_dir() and p.name not in ("steamuser", "Public"))
                 for profile in profiles:
-                    documents.extend([profile / "Documents", profile / "My Documents"])
+                    modern.append(profile / "AppData/Roaming")
+                    legacy.extend([profile / "Documents", profile / "My Documents"])
             except OSError:
                 continue
-    candidates = [directory / HATS for directory in documents if directory.is_dir()]
-    return next((p for p in candidates if p.is_dir()), candidates[0] if candidates else None)
+        modern.append(Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")))
+    for locations in (modern, legacy):
+        candidates = [base / HATS for base in locations if (base / "DuckGame").is_dir()]
+        if candidates:
+            return next((p for p in candidates if p.is_dir()), candidates[0])
+    return None
 
 
 def fallback_directory() -> Path:

@@ -85,9 +85,18 @@ class Preview:
         self.values = evaluate(self.hat.slots, lambda: .5)
         self.sheet = tint(self.hat.artwork, self.color) if 2 in self.values else self.hat.artwork
         self.duck = tint(self.original_duck, self.color)
-        self.frames = [self.sheet.crop((x,32,x+24,56)) for x in range(0,self.hat.width-23,24)] if self.hat.height>=56 else []
-        while len(self.frames)>1 and not self.frames[-1].getchannel("A").getbbox():
-            self.frames.pop()
+        # Duck Game treats magenta as transparent. Never alter exported artwork.
+        self.sheet = self.sheet.copy()
+        self.sheet.putdata([(r,g,b,0 if (r,g,b)==(255,0,255) else a)
+                            for r,g,b,a in self.sheet.get_flattened_data()])
+        self.frames = []
+        if self.hat.height >= 56 and self.hat.width > 32:
+            for x,y in ((24,32),(36,32),(24,44),(36,44)):
+                frame = self.sheet.crop((x,y,x+12,y+12))
+                if frame.getchannel("A").getbbox():
+                    self.frames.append(frame)
+        if not self.frames:
+            self.particles.clear()
 
     def jump(self):
         if self.y >= self.floor:
@@ -95,6 +104,8 @@ class Preview:
 
     def quack(self):
         self.quacking = .3
+        if not self.frames:
+            return
         base = evaluate(self.hat.slots, self.random.random)
         preset = base.get(31, [0, 0])[1]
         if 31 in base and preset == 0:
@@ -236,6 +247,8 @@ class Preview:
             image.alpha_composite(opacity(strip,alpha),(round(px-width/2),round(py)))
 
     def draw_particles(self,image,background):
+        if not self.frames:
+            return
         for p in self.particles:
             if (43 in p.values)!=background or p.life<=0: continue
             f=clamp(p.age/p.life);a=p.values.get(39,[1,0]);s=p.values.get(40,[.5,0]);r=p.values.get(41,[0,0])
@@ -247,7 +260,7 @@ class Preview:
                     frame=math.floor(p.age*p.values.get(48,[.5,0])[0]*24)+(p.frame if 47 in p.values else 0)
                     frame=frame%len(self.frames) if 46 in p.values else min(len(self.frames)-1,frame)
                 source=self.frames[frame]
-            else: source=Image.new("RGBA",(3,3),"#ffd172")
+            else: continue
             x,y=p.x,p.y
             if 44 in p.values: x+=self.x-p.origin[0];y+=self.y-p.origin[1]
             self.sprite(image,source,x-source.width*scale/2,y-source.height*scale/2,scale,

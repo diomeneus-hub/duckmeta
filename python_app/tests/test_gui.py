@@ -14,7 +14,8 @@ class GuiTests(unittest.TestCase):
     def setUp(self):
         self.root=tk.Tk();self.errors=[]
         self.root.report_callback_exception=lambda *args:self.errors.append(args)
-        self.app=App(self.root);self.root.update();self.app.engine.paused=True
+        self.preferences=tempfile.TemporaryDirectory();self.addCleanup(self.preferences.cleanup)
+        self.app=App(self.root,preferences_path=Path(self.preferences.name)/"settings.json");self.root.update();self.app.engine.paused=True
 
     def tearDown(self):
         self.app.closed=True
@@ -50,7 +51,7 @@ class GuiTests(unittest.TestCase):
     def test_controls_dialogs_and_unsaved_cancel(self):
         self.app.motion(True);self.app.engine.paused=False;self.app.engine.advance(.1);self.assertGreater(self.app.engine.x,192)
         self.app.color.set("Pink");self.app.color_changed();self.assertEqual(self.app.engine.color,"Pink")
-        self.app.engine.quack();self.assertGreater(len(self.app.engine.particles),0)
+        self.app.engine.quack();self.assertGreater(self.app.engine.quacking,0)
         self.app.pause();self.assertTrue(self.app.engine.paused)
         self.app.add_dialog();self.root.update()
         dialogs=[w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel)]
@@ -118,3 +119,13 @@ class GuiTests(unittest.TestCase):
             self.app.animation_settings();self.root.update()
             dialogs=[w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel)]
             self.assertEqual(len(dialogs),1);dialogs[0].destroy()
+
+    def test_export_folder_override_survives_detection_and_restart(self):
+        from duckmeta.settings import read_export_folder
+        folder=Path(self.preferences.name)/"my hats";folder.mkdir()
+        with patch("duckmeta.app.filedialog.askdirectory",return_value=str(folder)):
+            self.app.choose_export_folder()
+        self.assertEqual(read_export_folder(self.app.preferences_path),folder)
+        with patch("duckmeta.app.find_hats_directory",return_value=Path("/wrong")), patch("duckmeta.app.filedialog.asksaveasfilename",return_value="") as dialog:
+            self.app.save_file()
+            self.assertEqual(dialog.call_args.kwargs["initialdir"],str(folder))

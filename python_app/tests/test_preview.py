@@ -27,6 +27,7 @@ class PreviewTests(unittest.TestCase):
         self.preview.facing=-1;self.assertNotEqual(self.preview.render().tobytes(),colored)
 
     def test_particles_render_and_expire(self):
+        self.hat.artwork.putpixel((24,32),(255,255,255,255));self.preview.rebuild()
         before=self.preview.render().tobytes();self.preview.quack();self.assertEqual(len(self.preview.particles),6)
         for _ in range(24):self.preview.advance(1/60)
         self.assertNotEqual(self.preview.render().tobytes(),before);self.assertEqual(len(self.preview.frames),1)
@@ -34,6 +35,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(len(self.preview.particles),0)
 
     def test_preset_overrides_count_and_none_emits_nothing(self):
+        self.hat.artwork.putpixel((24,32),(255,255,255,255))
         self.hat.slots=[EMPTY]*self.hat.height;self.hat.slots[:2]=[(31,0,3,255),(34,120,0,255)]
         self.preview.rebuild();self.preview.quack();self.assertEqual(len(self.preview.particles),8)
         self.hat.slots[0]=(31,0,0,255);self.preview.set_hat(self.hat);self.preview.quack()
@@ -53,3 +55,22 @@ class PreviewTests(unittest.TestCase):
         for _ in range(60):self.preview.advance(1/60)
         for _ in range(30):other.advance(1/30)
         self.assertAlmostEqual(self.preview.time,other.time);self.assertAlmostEqual(self.preview.x,other.x)
+
+    def test_rock_only_and_short_hats_do_not_emit(self):
+        self.preview.quack()
+        self.assertGreater(self.preview.quacking,0)
+        self.assertEqual(self.preview.frames,[])
+        self.assertEqual(self.preview.particles,[])
+        self.preview.set_hat(Hat.from_image(self.hat.artwork.crop((0,0,64,32)),"master.png"))
+        self.preview.quack()
+        self.assertEqual(self.preview.particles,[])
+
+    def test_particle_cells_order_transparency_and_preservation(self):
+        colors=[(255,0,0,255),(255,0,255,255),(0,255,0,255),(0,0,255,255)]
+        for xy,color in zip(((24,32),(36,32),(24,44),(36,44)),colors):
+            self.hat.artwork.putpixel(xy,color)
+        before=self.hat.png()
+        self.preview.rebuild()
+        self.assertEqual([f.size for f in self.preview.frames],[(12,12)]*3)
+        self.assertEqual([f.getpixel((0,0)) for f in self.preview.frames],[colors[0],colors[2],colors[3]])
+        self.assertEqual(self.hat.png(),before)

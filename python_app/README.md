@@ -37,12 +37,14 @@ On later launches, double-click `Start-Duckmeta.bat`. It uses the local virtual 
 **Export PNG** defaults to Duck Game's hats folder, normally:
 
 ```text
-~/.local/share/Steam/steamapps/compatdata/312530/pfx/drive_c/users/steamuser/Documents/DuckGame/Custom/Hats
+~/.local/share/Steam/steamapps/compatdata/312530/pfx/drive_c/users/steamuser/AppData/Roaming/DuckGame/Custom/Hats
 ```
 
-The editor detects regular Steam installs, `.steam` aliases, Flatpak Steam, and extra Steam libraries listed in `libraryfolders.vdf`. It also handles Proton's `My Documents` alias and existing profiles with a different username. The detected location appears in the startup status line. If a game prefix has a Documents folder but no hats folder yet, the app creates `DuckGame/Custom/Hats` when you export.
+The editor detects regular Steam installs, `.steam` aliases, Flatpak Steam, extra Steam libraries, and alternate Proton usernames. It prefers an existing `AppData/Roaming/DuckGame` save root over legacy Documents saves, including when an old Documents folder contains exported hats. It only creates `Custom/Hats` under a detected game save root. Windows uses `%APPDATA%`; native Linux uses `$XDG_CONFIG_HOME` (normally `~/.config`).
 
-Run Duck Game through Steam at least once to create its Proton prefix. If no prefix is found, the export dialog opens your own Documents/home folder and lets you choose a destination. **Open PNG is unchanged**; only the default export destination is set. You can always choose a different location in the export dialog. On Windows, the app checks Documents and OneDrive/Documents.
+Use **File → Choose export folder...** to save an explicit default across restarts. Preferences live in `~/.config/duckmeta/settings.json` (or your platform's application configuration folder). Automatic detection does not override this choice. The export dialog also lets you pick a different destination for an individual file.
+
+If you previously exported into the Proton Documents folder, copy those PNGs into the active AppData hats folder and restart the game. Check `Documents/DuckGame/where_is_my_save.txt` in the same prefix for the game's migration notice. Legacy installs may still use Documents; detection falls back to it when no modern save root exists. If no game save root is found, choose the destination manually.
 
 ## Base hats and XNB textures
 
@@ -99,9 +101,16 @@ The sprite layout used in the preview is:
 
 - First two 32×32 cells: idle and quacking hat.
 - Third 32×32 cell: cape.
-- Row beginning at Y=32: 24×24 particle frames, with empty trailing cells trimmed.
+- Rock image: 24×24 at (0,32), preserved but not previewed.
+- Four 12×12 particle cells: (24,32), (36,32), (24,44), (36,44). Empty cells are skipped.
 
-Artwork outside these regions is preserved but not previewed. Missing particle art in a short sheet gets a placeholder square.
+Artwork outside these regions is preserved but not previewed. Missing particle art emits nothing. Magenta is transparent in the preview; original artwork bytes remain unchanged on export.
+
+## Why built-in hats have separate effects
+
+Texture2D XNBs contain compiled image data (dimensions, surface format, mipmaps, and sometimes compression), not an entire hat behavior definition. Game code selects and combines textures. Senpai uses `hats/sensei` for its hat and overlays `hats/senpaiStar`; Master uses `hats/master_glow` for its quack eye glow, not a launched spark. These game-coded overlays are not simulated or included when exporting an imported base hat as a custom PNG. Custom PNG particles need actual artwork in the particle cells.
+
+These corrections were checked against the public Duck Game Rebuilt source (a modified decompilation, not a runtime verification of your Steam build): [save location selection](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/MonoTime/File/DuckFile.cs#L219), [custom PNG layout](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/DuckGame/Profile/Team.cs#L143), and [built-in overlays](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/DuckGame/Equipment/TeamHat.cs#L561).
 
 ## File preservation
 
@@ -116,13 +125,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the nine GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the ten GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Forty-four tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Forty-nine tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
