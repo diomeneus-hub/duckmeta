@@ -60,11 +60,15 @@ def plan_apply(slots, pixels):
 
 
 class TemplateStore:
-    def __init__(self, directory):self.directory = Path(directory)
+    def __init__(self, directory, bundled_directory=None):
+        self.directory = Path(directory)
+        self.bundled_directory = Path(bundled_directory) if bundled_directory else None
 
     def list(self):
         entries, errors = [], []
-        for path in sorted(self.directory.glob('*.json')):
+        paths = list(self.directory.glob('*.json'))
+        if self.bundled_directory:paths.extend(self.bundled_directory.glob('*.json'))
+        for path in sorted(paths):
             try:
                 if path.stat().st_size > 65536:raise ValueError('File too large')
                 data = json.loads(path.read_text(encoding='utf-8'))

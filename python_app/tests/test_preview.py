@@ -132,3 +132,21 @@ class PreviewTests(unittest.TestCase):
                 self.preview.draw_particles(Image.new('RGBA',(384,240)),False)
                 if expected==0:draw.assert_not_called()
                 else:self.assertAlmostEqual(draw.call_args.args[4],expected*self.preview.zoom)
+
+    def test_default_cape_is_shorter_narrower_and_slants_back(self):
+        from PIL import Image
+        from unittest.mock import patch
+        self.hat.slots=[EMPTY]*self.hat.height;self.preview.rebuild()
+        for facing in (1,-1):
+            self.preview.facing=facing
+            with patch.object(self.preview,'sheet') as sheet:
+                sheet.crop.return_value=Image.new('RGBA',(32,1),'red')
+                canvas=Image.new('RGBA',(384,240))
+                self.preview.draw_cape(canvas)
+            bounds=canvas.getbbox()
+            self.assertLessEqual(bounds[3]-bounds[1],24)
+            self.assertLess(bounds[3],self.preview.floor)
+            self.assertLessEqual(bounds[2]-bounds[0],30)
+            top=[x for x in range(384) if canvas.getpixel((x,bounds[1]))[3]]
+            bottom=[x for x in range(384) if canvas.getpixel((x,bounds[3]-1))[3]]
+            self.assertLess((sum(bottom)/len(bottom)-sum(top)/len(top))*facing,0)

@@ -39,3 +39,19 @@ class TemplateTests(unittest.TestCase):
             entries,errors=store.list()
             self.assertEqual(len(entries),1);self.assertEqual(len(errors),1)
             with self.assertRaises(ValueError):store.save('broken',[(1,300,0,255)])
+
+    def test_bundled_water_template_is_available_without_user_files(self):
+        from duckmeta.model import ASSETS, Hat
+        from duckmeta.preview import Preview
+        with tempfile.TemporaryDirectory() as folder:
+            entries,errors=TemplateStore(Path(folder)/'missing',ASSETS/'templates').list()
+            self.assertFalse(errors)
+            name,pixels=next(e for e in entries if e[0].startswith('Eyebob'))
+            hat=Hat.example();hat.slots=[EMPTY]*hat.height
+            hat.artwork.putpixel((24,32),(80,190,255,255))
+            hat.slots,_=plan_apply(hat.slots,pixels)
+            preview=Preview(hat,seed=1);preview.quack()
+            self.assertEqual(len(preview.particles),4)
+            self.assertTrue(all(p.vx>0 and 44 not in p.values for p in preview.particles))
+            for _ in range(40):preview.advance(1/60)
+            self.assertEqual(preview.particles,[])

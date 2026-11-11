@@ -33,7 +33,7 @@ class App:
         self.hat = hat or Hat.example()
         self.engine = Preview(self.hat)
         self.preferences_path = preferences_path or settings_path()
-        self.templates = TemplateStore(self.preferences_path.parent / "templates")
+        self.templates = TemplateStore(self.preferences_path.parent / "templates", ASSETS / "templates")
         self.export_directory = read_export_folder(self.preferences_path) or find_hats_directory()
         self.content_directory = find_content_directory()
         self.held_keys = set()
@@ -152,7 +152,9 @@ class App:
         self.color=tk.StringVar(value="White")
         combo=ttk.Combobox(settings,values=list(COLORS),textvariable=self.color,state="readonly",width=8)
         combo.pack(side="left");combo.bind("<<ComboboxSelected>>",self.color_changed)
+        self.hold_quack=tk.BooleanVar()
         self.auto=tk.BooleanVar();ttk.Checkbutton(settings,text="Auto quack",variable=self.auto,command=lambda:setattr(self.engine,"auto_quack",self.auto.get())).pack(side="left",padx=9)
+        ttk.Checkbutton(settings,text="Hold quack",variable=self.hold_quack,command=self.update_quack_hold).pack(side="left",padx=(0,9))
         self.grid=tk.BooleanVar();ttk.Checkbutton(settings,text="Grid",variable=self.grid,command=lambda:setattr(self.engine,"grid",self.grid.get())).pack(side="left")
         self.zoom=tk.StringVar(value="2")
         combo=ttk.Combobox(settings,values=["1","2","3"],textvariable=self.zoom,width=2,state="readonly");combo.pack(side="right")
@@ -602,12 +604,18 @@ class App:
     def pause(self):
         self.engine.paused=not self.engine.paused;self.pause_button.configure(text="Resume" if self.engine.paused else "Pause")
 
+    def update_quack_hold(self):
+        held=self.hold_quack.get() or any(key.lower()=="q" for key in self.held_keys)
+        if held and not self.engine.quack_held:self.engine.quack()
+        self.engine.quack_held=held
+        if not held:self.engine.quacking=0
+
     def key_down(self,event):
         if event.keysym in ("Left","Right"):self.engine.direction=-1 if event.keysym=="Left" else 1
         elif event.keysym=="Down":self.engine.crouching=True
         elif event.keysym=="space" and event.keysym not in self.held_keys:self.engine.jump()
         elif event.keysym.lower()=="q":
-            if event.keysym not in self.held_keys:self.engine.quack()
+            if event.keysym not in self.held_keys and not self.engine.quack_held:self.engine.quack()
             self.engine.quack_held=True
         self.held_keys.add(event.keysym)
         return "break"
@@ -617,11 +625,11 @@ class App:
         if event.keysym in ("Left","Right"):
             self.engine.direction=-1 if "Left" in self.held_keys else 1 if "Right" in self.held_keys else 0
         elif event.keysym=="Down":self.engine.crouching=False
-        elif event.keysym.lower()=="q":self.engine.quack_held=False
+        elif event.keysym.lower()=="q":self.update_quack_hold()
         return "break"
 
     def release_controls(self,event=None):
-        self.held_keys.clear();self.engine.direction=0;self.engine.crouching=False;self.engine.quack_held=False
+        self.held_keys.clear();self.engine.direction=0;self.engine.crouching=False;self.update_quack_hold()
 
     def animate(self):
         if self.closed:return

@@ -164,6 +164,14 @@ Particle scale metadata accepts 0–2, but Duck Game clamps the interpolated vis
 
 The stock custom-particle settings do not provide the built-in Senpai overlay's held-quack lifetime and release behavior. Passive particle conditions (110–113) in the cited reference source are marked as Duck Game Rebuilt additions; do not rely on them in regular Steam Duck Game. A static star drawn into the quack hat frame can follow the pose, but cannot continuously spin or pulse like the built-in overlay.
 
+## Hold quack and Eyebob experiment
+
+**Hold quack**, beside Auto quack, keeps the preview in its quack pose until unticked. Switching it on triggers one quack; holding it does not repeatedly emit particles or extend their lifespan. Keyboard Q and the toggle work together; releasing Q or moving focus does not cancel a checked toggle. Auto quack remains a separate repeat-emission control. None of these preview controls are exported as metadata.
+
+**Apply template → Eyebob-style water spit (experimental)** is bundled with the app. Start with particle settings cleared, especially Particle preset (31), Anchor particles (44), and animation flags from an earlier star experiment: applying templates preserves unrelated settings. Draw a small pale-blue/white droplet inside a transparent 12×12 particle cell first. The template emits four forward-moving droplets, randomizes their vertical velocity, applies downward gravity, and shrinks/fades them over about half a second. Use the quack hat frame for the closed/blinking eye. The built-in Eyebob uses `hats/gross` and the game's water simulation; these sprite particles do not recreate liquid collisions, pooling, or release splashes. Compare the exported result in-game.
+
+Default cape rendering now uses a 13-pixel width basis, 0.5→1 taper, roughly ten pixels of vertical drop for the 32-pixel cape texture, a lower body attachment, and backward sway mirrored with facing. The prior preview used an 18-pixel width basis and roughly 25 pixels of drop. These defaults were checked against the public game reference and the supplied screenshot; the strip renderer is still an approximation of the game's cape mesh and physics. Artwork and metadata exports are unaffected.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
@@ -177,13 +185,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the fourteen GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the fifteen GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-four tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Sixty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 

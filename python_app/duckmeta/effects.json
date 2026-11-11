@@ -71,7 +71,7 @@
       128,
       220
     ],
-    "description": "Adjust horizontal cape sway and vertical length. 128 means zero; higher values push right (when facing right) and down. Cloth motion remains approximate."
+    "description": "Adjust horizontal cape sway and vertical length. 128 means zero; higher values push backward and down. Cloth motion remains approximate."
   },
   {
     "id": 13,

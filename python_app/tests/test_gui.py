@@ -183,11 +183,36 @@ class GuiTests(unittest.TestCase):
         for check in checks[1:]:check.invoke()
         next(w for w in widgets if isinstance(w,ttk.Button) and w.cget('text')=='Save template').invoke()
         entries,errors=self.app.templates.list();self.assertEqual(errors,[])
+        entries=[entry for entry in entries if entry[0]=='One modifier']
         self.assertEqual(entries,[('One modifier',[self.app.hat.slots[0]])])
         self.app.hat.slots=[(0,0,0,0)]*self.app.hat.height;self.app.refresh()
         self.app.apply_template_dialog();self.root.update()
         dialog=next(w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel))
+        box=next(w for w in descendants(dialog) if isinstance(w,tk.Listbox))
+        index=next(i for i in range(box.size()) if box.get(i).startswith('One modifier'))
+        box.selection_clear(0,'end');box.selection_set(index)
         with patch('duckmeta.app.messagebox.askyesno') as ask:
             next(w for w in descendants(dialog) if isinstance(w,ttk.Button) and w.cget('text')=='Apply').invoke()
             ask.assert_not_called()
         self.assertEqual(self.app.hat.slots[0],entries[0][1][0])
+
+    def test_hold_quack_toggle_keyboard_and_focus(self):
+        from types import SimpleNamespace
+        engine=self.app.engine
+        with patch.object(engine,'quack',wraps=engine.quack) as quack:
+            self.app.hold_quack.set(True);self.app.update_quack_hold()
+            self.assertTrue(engine.quack_held);quack.assert_called_once()
+            self.app.release_controls();self.assertTrue(engine.quack_held)
+            self.app.key_down(SimpleNamespace(keysym='q'))
+            self.app.key_up(SimpleNamespace(keysym='q'))
+            self.assertTrue(engine.quack_held);quack.assert_called_once()
+            engine.paused=False
+            for _ in range(120):engine.advance(1/60)
+            self.assertGreater(engine.quacking,0);quack.assert_called_once()
+            self.app.hold_quack.set(False);self.app.update_quack_hold()
+            self.assertFalse(engine.quack_held);self.assertEqual(engine.quacking,0)
+        self.app.key_down(SimpleNamespace(keysym='q'))
+        self.app.hold_quack.set(True);self.app.update_quack_hold()
+        self.app.hold_quack.set(False);self.app.update_quack_hold()
+        self.assertTrue(engine.quack_held)
+        self.app.key_up(SimpleNamespace(keysym='q'));self.assertFalse(engine.quack_held)

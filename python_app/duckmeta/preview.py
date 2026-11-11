@@ -224,13 +224,13 @@ class Preview:
 
     def draw_cape(self,image):
         if self.hat.width<96: return
-        ox,oy=self.values.get(10,[0,0]);ax,ay=self.current_head_offset();ox+=ax;oy+=ay
-        sway,weight=self.values.get(12,[.3,1]);wx,wy=self.values.get(13,[.15,.1])
-        start=self.values.get(14,[.45,0])[0];end=self.values.get(15,[1,0])[0]
+        ox,oy=self.values.get(10,[0,0]);oy+=5 if self.crouching else 0
+        sway,weight=self.values.get(12,[.3,1]);wx,wy=self.values.get(13,[1,1])
+        start=self.values.get(14,[.5,0])[0];end=self.values.get(15,[1,0])[0]
         a0=self.values.get(16,[1,0])[0];a1=self.values.get(17,[1,0])[0]
         for row in range(32):
             f=row/31;alpha=clamp(a0+(a1-a0)*f)
-            width=max(0,round((start+(end-start)*f)*18*self.zoom))
+            width=max(0,round((start+(end-start)*f)*13*self.zoom))
             if not width or alpha<=0: continue
             strip=self.sheet.crop((64,row,96,row+1)).resize((width,self.zoom+1),NEAREST)
             if self.facing<0: strip=ImageOps.mirror(strip)
@@ -239,10 +239,10 @@ class Preview:
                 px,py=self.trail[min(len(self.trail)-1,row*2)]
                 px+=ox*self.zoom*self.facing;py+=oy*self.zoom
             else:
-                wind=math.sin(self.time*4-row*.25)*wx*5*f-(f*5 if self.running else 0)
-                length=row*.8*weight+math.sin(self.time*3-row*.2)*wy*3*f
-                px=self.x+(-5+ox+wind+row*.8*sway)*self.zoom*self.facing
-                py=self.y+(-22+oy+length)*self.zoom
+                wind=math.sin(self.time*4-row*.25)*wx*.45*f-(f*5 if self.running else 0)
+                length=f*10*weight+math.sin(self.time*3-row*.2)*wy*.4*f
+                px=self.x+(-5+ox+wind-f*10*sway)*self.zoom*self.facing
+                py=self.y+(-17+oy+length)*self.zoom
             image.alpha_composite(opacity(strip,alpha),(round(px-width/2),round(py)))
 
     def draw_particles(self,image,background):
