@@ -4,7 +4,7 @@
 
 [**Download Duckmeta-Python.zip**](https://github.com/diomeneus-hub/duckmeta/raw/refs/heads/main/downloads/Duckmeta-Python.zip)
 
-Extract the entire ZIP, then follow its `README.md` to install Pillow and launch the desktop editor. Python 3.10+ with Tkinter is required. Linux and Windows launch scripts are included. This is Python source, not a standalone executable.
+Extract the entire ZIP, then follow its `README.md` to install Pillow and launch the desktop editor. Python 3.10+ with Tkinter is required. Linux and Windows launch scripts are included. The Python app now supports **File → Load base hat** for XNB textures and imports real duck/quack sprite frames. When updating, reinstall its `requirements.txt` to get the XNB decoders. This is Python source, not a standalone executable.
 
 **Native Python app:** see [python_app/README.md](python_app/README.md). It uses Tkinter and Pillow, with a native animated preview and all 35 metapixel definitions. Launch from that folder with `python duckmeta.py` after installing its requirements. The rest of this document describes the browser edition.
 

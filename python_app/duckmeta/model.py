@@ -89,6 +89,12 @@ class Hat:
         slots = [image.getpixel((art_width, y)) if has_meta else EMPTY for y in range(height)]
         return cls(name or "hat.png", image.crop((0, 0, art_width, height)), slots, has_meta)
 
+    @classmethod
+    def from_image(cls, image, name="hat.png"):
+        buffer = io.BytesIO()
+        image.convert("RGBA").save(buffer, format="PNG")
+        return cls.read(buffer.getvalue(), name=name)
+
     def image(self):
         result = Image.new("RGBA", (self.width + 1, self.height))
         # No mask: preserve even the RGB bytes of fully transparent pixels.

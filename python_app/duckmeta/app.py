@@ -13,7 +13,9 @@ from PIL import Image, ImageDraw, ImageTk
 
 from .model import ASSETS, BY_ID, EFFECTS, EMPTY, Hat, History, decode_value
 from .preview import COLORS, NEAREST, Preview
-from .paths import find_hats_directory, fallback_directory
+from .paths import find_hats_directory, fallback_directory, find_content_directory, find_duck_textures
+from .sprites import DuckSprites, STATES, load_sprite_image
+from .xnb import read_texture
 
 BG, PANEL, TEXT, MUTED, ACCENT = "#101719", "#182123", "#e5eae6", "#96a89c", "#bde899"
 
@@ -27,6 +29,8 @@ class App:
         self.hat = hat or Hat.example()
         self.engine = Preview(self.hat)
         self.export_directory = find_hats_directory()
+        self.content_directory = find_content_directory()
+        self.held_keys = set()
         self.history = History()
         self.saved_slots = list(self.hat.slots)
         self.selected = next((i for i,p in enumerate(self.hat.slots) if p[3]),0)
@@ -40,8 +44,9 @@ class App:
         self._build()
         self.refresh()
         self.status.set(f"{self.hat.name} loaded. Default export: {self.export_directory}" if self.export_directory else f"{self.hat.name} loaded. Duck Game hats folder not detected; choose a folder when exporting.")
+        self.auto_load_sprites(silent=True)
         root.protocol("WM_DELETE_WINDOW", self.close)
-        for sequence, command in [("<Control-o>",self.open_file),("<Control-s>",self.save_file),
+        for sequence, command in [("<Control-o>",self.open_file),("<Control-b>",self.load_base_hat),("<Control-s>",self.save_file),
                                   ("<Control-z>",self.undo),("<Control-y>",self.redo)]:
             root.bind(sequence,lambda event,fn=command: (fn(),"break")[1])
         self.animate()
@@ -75,6 +80,23 @@ class App:
         self.root.option_add("*TCombobox*Listbox.foreground",TEXT)
 
     def _build(self):
+        self.menubar=tk.Menu(self.root)
+        self.file_menu=tk.Menu(self.menubar,tearoff=False)
+        self.file_menu.add_command(label="Open PNG...",command=self.open_file,accelerator="Ctrl+O")
+        self.file_menu.add_command(label="Load base hat...",command=self.load_base_hat,accelerator="Ctrl+B")
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Load duck sprite sheet...",command=self.load_duck_sheet)
+        self.file_menu.add_command(label="Load quack sprite sheet...",command=self.load_quack_sheet)
+        self.file_menu.add_command(label="Choose game Content folder...",command=self.choose_content)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Export PNG...",command=self.save_file,accelerator="Ctrl+S")
+        self.file_menu.add_command(label="Exit",command=self.close)
+        self.menubar.add_cascade(label="File",menu=self.file_menu)
+        preview_menu=tk.Menu(self.menubar,tearoff=False)
+        preview_menu.add_command(label="Animation settings / sprite frames...",command=self.animation_settings)
+        preview_menu.add_command(label="Reload duck sprites from game",command=self.auto_load_sprites)
+        self.menubar.add_cascade(label="Preview",menu=preview_menu)
+        self.root.configure(menu=self.menubar)
         header=ttk.Frame(self.root,padding=18);header.pack(fill="x")
         ttk.Label(header,text="DUCKMETA",style="Title.TLabel").pack(side="left")
         ttk.Label(header,text="  PYTHON HAT WORKSHOP",style="Muted.TLabel").pack(side="left",padx=12)
@@ -100,15 +122,16 @@ class App:
         ttk.Label(left,text="Order matters. Randomizers affect\nthe preceding non-randomizer.",style="Muted.TLabel",wraplength=195).grid(sticky="w",pady=6)
         middle=ttk.Frame(content,padding=10);middle.grid(row=0,column=1,sticky="nsew")
         middle.columnconfigure(0,weight=1);middle.rowconfigure(1,weight=1)
-        ttk.Label(middle,text="LIVE DUCK PREVIEW",style="Muted.TLabel").grid(row=0,column=0,sticky="w",pady=(0,12))
+        self.sprite_status=tk.StringVar(value="PREVIEW · Single-frame fallback — load a duck sprite sheet")
+        ttk.Label(middle,textvariable=self.sprite_status,style="Muted.TLabel",wraplength=580).grid(row=0,column=0,sticky="w",pady=(0,12))
         self.canvas=tk.Canvas(middle,bg="#111e23",width=600,height=375,highlightthickness=1,highlightbackground="#35443c",takefocus=True)
         self.canvas.grid(row=1,column=0,sticky="nsew")
         self.canvas.bind("<Button-1>",lambda event:self.canvas.focus_set())
         self.canvas.bind("<KeyPress>",self.key_down);self.canvas.bind("<KeyRelease>",self.key_up)
-        self.canvas.bind("<FocusOut>",lambda event:setattr(self.engine,"direction",0))
+        self.canvas.bind("<FocusOut>",self.release_controls)
         transport=ttk.Frame(middle);transport.grid(row=2,column=0,sticky="ew",pady=10)
-        for label,command in [("Idle",lambda:self.motion(False)),("Run",lambda:self.motion(True)),("Jump",self.engine.jump),("Quack!",self.engine.quack)]:
-            ttk.Button(transport,text=label,command=command,width=7).pack(side="left",padx=(0,5))
+        for label,command in [("Idle",lambda:self.motion(False)),("Walk",lambda:self.motion(True,True)),("Run",lambda:self.motion(True)),("Jump",self.engine.jump),("Quack!",self.engine.quack)]:
+            ttk.Button(transport,text=label,command=command,width=6).pack(side="left",padx=(0,5))
         self.pause_button=ttk.Button(transport,text="Pause",command=self.pause,width=7);self.pause_button.pack(side="right")
         ttk.Button(transport,text="Flip",command=self.flip,width=5).pack(side="right",padx=5)
         settings=ttk.Frame(middle);settings.grid(row=3,column=0,sticky="ew",pady=(0,10))
@@ -123,7 +146,7 @@ class App:
         combo.bind("<<ComboboxSelected>>",self.zoom_changed);ttk.Label(settings,text="Zoom ").pack(side="right")
         ttk.Label(middle,text="SPRITE SHEET  ·  IDLE / QUACK / CAPE / PARTICLES / METADATA",style="Muted.TLabel").grid(row=4,column=0,sticky="w",pady=8)
         self.sheet_label=ttk.Label(middle,anchor="center");self.sheet_label.grid(row=5,column=0,sticky="ew")
-        ttk.Label(middle,text="Click preview: arrows move · Space jumps · Q quacks\nApproximate game physics. Check final behavior in Duck Game.",style="Muted.TLabel",justify="left").grid(row=6,column=0,sticky="w",pady=10)
+        ttk.Label(middle,text="Click preview: arrows move · Down crouches · Space jumps · hold Q to quack\nApproximate game physics. Check final behavior in Duck Game.",style="Muted.TLabel",justify="left").grid(row=6,column=0,sticky="w",pady=10)
         right=ttk.Frame(content,width=280,padding=12);right.grid(row=0,column=2,sticky="nsew",padx=(12,0));right.pack_propagate(False)
         bar=ttk.Frame(right);bar.pack(fill="x")
         ttk.Label(bar,text="INSPECTOR",style="Muted.TLabel").pack(side="left")
@@ -312,6 +335,107 @@ class App:
         if self.confirm_replace():
             self.install_hat(hat);self.status.set(f"Loaded {filename}. {'Existing metadata preserved.' if hat.had_meta else 'One metadata column will be added on export.'}")
 
+    def load_base_hat(self):
+        directory=self.content_directory or find_content_directory() or fallback_directory()
+        for child in ("Hats","hats","Textures/Hats","textures/hats"):
+            if (directory/child).is_dir():directory=directory/child;break
+        filename=filedialog.askopenfilename(parent=self.root,title="Load a base Duck Game hat",initialdir=str(directory),filetypes=[("XNB textures","*.xnb"),("All files","*")])
+        if not filename:return
+        try:
+            texture=read_texture(filename)
+            hat=Hat.from_image(texture.image,Path(filename).stem+".png")
+        except Exception as exc:
+            messagebox.showerror("Could not load base hat",str(exc),parent=self.root);return
+        if self.confirm_replace():
+            self.install_hat(hat)
+            self.status.set(f"Imported {Path(filename).name} ({texture.compression}, format {texture.surface_format}). Export saves a custom PNG; original XNB is unchanged.")
+
+    def set_sprite_status(self):
+        sprites=self.engine.sprites
+        self.sprite_status.set(f"PREVIEW · {sprites.source} · {len(sprites.normal)} normal / {len(sprites.quack)} quack frames")
+
+    def auto_load_sprites(self,silent=False):
+        if not self.content_directory:
+            if not silent:self.status.set("Game Content folder not found. Use File → Choose game Content folder, or load your duck sprite sheet.")
+            return
+        try:
+            normal,quack=find_duck_textures(self.content_directory)
+            if normal is None:
+                if not silent:self.status.set("No duck.xnb/duck.png found under Content. Load your sprite sheet through the File menu.")
+                return
+            sprites=DuckSprites.load(normal)
+            if quack:sprites.set_quack(load_sprite_image(quack))
+            self.engine.set_sprites(sprites);self.set_sprite_status()
+            if not silent:self.status.set(f"Loaded actual duck frames from {normal}. Tune frame mapping in Preview → Animation settings.")
+        except Exception as exc:
+            self.status.set(f"Could not load game duck sprites: {exc}. Use File → Load duck sprite sheet.")
+
+    def choose_content(self):
+        directory=filedialog.askdirectory(parent=self.root,title="Select Duck Game's Content folder",initialdir=str(self.content_directory or fallback_directory()))
+        if directory:
+            self.content_directory=Path(directory);self.auto_load_sprites()
+
+    def load_duck_sheet(self):
+        filename=filedialog.askopenfilename(parent=self.root,title="Load duck sprite sheet (32px grid or annotated reference)",initialdir=str(self.content_directory or fallback_directory()),filetypes=[("Duck sprites","*.png *.xnb"),("PNG","*.png"),("XNB","*.xnb")])
+        if not filename:return
+        try:
+            sprites=DuckSprites.load(filename)
+            # Pick up the separate quack texture when selecting the game's duck file.
+            if Path(filename).stem.lower()=="duck" and not sprites.quack:
+                for path in Path(filename).parent.iterdir():
+                    if path.stem.lower().replace("_","")=="duckquack" and path.suffix.lower() in (".png",".xnb"):
+                        sprites.set_quack(load_sprite_image(path));break
+            self.engine.set_sprites(sprites);self.set_sprite_status()
+            self.status.set("Duck frames loaded. Use Preview → Animation settings to inspect/tune frame indices and speed.")
+        except Exception as exc:messagebox.showerror("Could not load duck sprites",str(exc),parent=self.root)
+
+    def load_quack_sheet(self):
+        filename=filedialog.askopenfilename(parent=self.root,title="Load matching quack sprite sheet",initialdir=str(self.content_directory or fallback_directory()),filetypes=[("Duck sprites","*.png *.xnb")])
+        if not filename:return
+        try:
+            self.engine.sprites.set_quack(load_sprite_image(filename));self.set_sprite_status()
+            self.status.set("Quack frames loaded. Hold Q with the preview focused to inspect them while moving.")
+        except Exception as exc:messagebox.showerror("Could not load quack sprites",str(exc),parent=self.root)
+
+    def animation_settings(self):
+        sprites=self.engine.sprites
+        dialog=tk.Toplevel(self.root);dialog.title("Duck animations — frame mapping");dialog.geometry("960x650");dialog.configure(bg=PANEL)
+        dialog.transient(self.root)
+        left=ttk.Frame(dialog,padding=16);left.pack(side="left",fill="y")
+        ttk.Label(left,text="Animation settings",font=(self.font,16,"bold")).pack(anchor="w",pady=(0,10))
+        ttk.Label(left,text="Frame indices start at 0. Defaults are inferred;\nuse the numbered atlas to match your sheet.\nWalk and run use separate playback speeds.\nChanges apply to this preview session.",style="Muted.TLabel",wraplength=320).pack(anchor="w",pady=(0,12))
+        rows={}
+        for state in STATES:
+            row=ttk.Frame(left);row.pack(fill="x",pady=7)
+            ttk.Label(row,text=state.title(),width=7).pack(side="left")
+            indices=tk.StringVar(value=",".join(map(str,sprites.mapping[state])))
+            fps=tk.StringVar(value=str(sprites.fps[state]))
+            ttk.Entry(row,textvariable=indices,width=17).pack(side="left",padx=4)
+            ttk.Spinbox(row,from_=0.1,to=60,increment=.5,textvariable=fps,width=5).pack(side="left")
+            ttk.Label(row,text=" fps",style="Muted.TLabel").pack(side="left")
+            rows[state]=(indices,fps)
+        def apply():
+            try:
+                mapping={state:[int(v.strip()) for v in rows[state][0].get().split(",")] for state in STATES}
+                fps={state:float(rows[state][1].get()) for state in STATES}
+                sprites.configure(mapping,fps);self.engine.animation_clock=0.
+                self.status.set("Preview animation mapping updated; hat PNG data is unchanged.");dialog.destroy()
+            except ValueError as exc:messagebox.showerror("Invalid animation",str(exc),parent=dialog)
+        ttk.Button(left,text="Apply animation settings",command=apply,style="Accent.TButton").pack(fill="x",pady=15)
+        ttk.Label(left,text=f"{len(sprites.normal)} normal frames\n{len(sprites.quack)} quack frames\nMissing quack frames use the normal duck.\nImport source: {sprites.source}",style="Muted.TLabel",wraplength=320).pack(anchor="w")
+        right=ttk.Frame(dialog,padding=12);right.pack(side="left",fill="both",expand=True)
+        ttk.Label(right,text="NORMAL DUCK FRAMES",style="Muted.TLabel").pack(anchor="w",pady=(0,8))
+        canvas=tk.Canvas(right,bg="#101719",highlightthickness=0)
+        scroll=ttk.Scrollbar(right,orient="vertical",command=canvas.yview);scroll.pack(side="right",fill="y")
+        canvas.configure(yscrollcommand=scroll.set);canvas.pack(fill="both",expand=True)
+        columns=min(8,len(sprites.normal));atlas=Image.new("RGBA",(columns*66,((len(sprites.normal)+columns-1)//columns)*82),"#27372c")
+        draw=ImageDraw.Draw(atlas)
+        for i,frame in enumerate(sprites.normal):
+            x,y=(i%columns)*66,(i//columns)*82
+            atlas.alpha_composite(frame.resize((64,64),NEAREST),(x,y));draw.text((x+3,y+66),str(i),fill="#d8ecc9")
+        dialog.atlas_photo=ImageTk.PhotoImage(atlas,master=self.root)
+        canvas.create_image(0,0,image=dialog.atlas_photo,anchor="nw");canvas.configure(scrollregion=canvas.bbox("all"))
+
     def save_file(self):
         # Recheck if Steam/the game was first launched after the editor started.
         self.export_directory = find_hats_directory() or self.export_directory
@@ -324,6 +448,9 @@ class App:
                 directory = fallback_directory()
         filename=filedialog.asksaveasfilename(parent=self.root,title="Export hat PNG",initialdir=str(directory),initialfile=Path(self.hat.name).stem+"-meta.png",defaultextension=".png",filetypes=[("PNG hats","*.png")])
         if not filename:return False
+        if Path(filename).suffix.lower()!=".png":
+            messagebox.showerror("Export as PNG","Choose a .png filename. The editor does not overwrite game XNB files.",parent=self.root)
+            return False
         temp=None
         try:
             # Atomic replacement avoids truncating an existing hat on a write failure.
@@ -357,8 +484,9 @@ class App:
     def zoom_changed(self,event=None):
         self.engine.zoom=int(self.zoom.get());self.engine.particles=[];self.engine.trail=[]
 
-    def motion(self,running):
-        self.engine.running=running;self.status.set("Running preview." if running else "Idle preview.")
+    def motion(self,running,walking=False):
+        self.engine.running=running;self.engine.walking=walking
+        self.status.set("Walking preview." if walking else "Running preview." if running else "Idle preview.")
 
     def flip(self):self.engine.facing*=-1
 
@@ -367,13 +495,24 @@ class App:
 
     def key_down(self,event):
         if event.keysym in ("Left","Right"):self.engine.direction=-1 if event.keysym=="Left" else 1
-        elif event.keysym=="space":self.engine.jump()
-        elif event.keysym.lower()=="q":self.engine.quack()
+        elif event.keysym=="Down":self.engine.crouching=True
+        elif event.keysym=="space" and event.keysym not in self.held_keys:self.engine.jump()
+        elif event.keysym.lower()=="q":
+            if event.keysym not in self.held_keys:self.engine.quack()
+            self.engine.quack_held=True
+        self.held_keys.add(event.keysym)
         return "break"
 
     def key_up(self,event):
-        if event.keysym in ("Left","Right"):self.engine.direction=0
+        self.held_keys.discard(event.keysym)
+        if event.keysym in ("Left","Right"):
+            self.engine.direction=-1 if "Left" in self.held_keys else 1 if "Right" in self.held_keys else 0
+        elif event.keysym=="Down":self.engine.crouching=False
+        elif event.keysym.lower()=="q":self.engine.quack_held=False
         return "break"
+
+    def release_controls(self,event=None):
+        self.held_keys.clear();self.engine.direction=0;self.engine.crouching=False;self.engine.quack_held=False
 
     def animate(self):
         if self.closed:return
@@ -390,7 +529,7 @@ class App:
         dialog=tk.Toplevel(self.root);dialog.title("Duckmeta help and reference");dialog.geometry("700x650");dialog.configure(bg=PANEL)
         text=tk.Text(dialog,bg=PANEL,fg=TEXT,wrap="word",font=(self.font,11),padx=20,pady=20)
         scroll=ttk.Scrollbar(dialog,command=text.yview);scroll.pack(side="right",fill="y");text.configure(yscrollcommand=scroll.set);text.pack(fill="both",expand=True)
-        intro=("DUCKMETA — PYTHON EDITION\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. Undo and Redo affect metadata edits. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Rotation uses radians. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 particles at Y=32. Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
+        intro=("DUCKMETA — PYTHON EDITION\n\nFile > Load base hat reads Texture2D XNBs from the game Content folder. Export always creates a custom PNG. File > Load duck sprite sheet accepts raw 32-pixel grids or the supplied 387 x 781 annotated reference layout; that layout includes quack frames. Separate duckQuack textures can also be loaded. Preview > Animation settings displays numbered frames and lets you tune each animation. Game timing and default frame mappings are approximations until checked against your installation.\n\nOpen a PNG, select a modifier, and adjust its sliders or raw bytes. Add modifiers from the searchable picker. Use Move up/down to place randomizers immediately after their target. Undo and Redo affect metadata edits. Export PNG to save.\n\nClick the preview for keyboard control: arrows move, Space jumps, Q quacks. You can also use the buttons. Preview settings are not written into the hat. IDs 70/71 export but sound playback is not included.\n\nThis is an independent simulation, not the Duck Game runtime. Movement, cape geometry, particles and defaults approximate the supplied reference. Non-particle randomizers use their midpoint; particle values are sampled per spawn. Rotation uses radians. Final hats need an in-game check.\n\nSheet layout: 32×32 idle and quack hats, third 32×32 cell cape, 24×24 particles at Y=32. Other artwork and unknown metadata are preserved.\n\nORIGINAL REFERENCE\n\n")
         text.insert("end",intro+(ASSETS/"metapixels-reference.txt").read_text(encoding="utf-8"));text.configure(state="disabled")
 
     def close(self):

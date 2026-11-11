@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageOps
 
 from .model import ASSETS, evaluate
+from .sprites import DuckSprites, head_anchor
 
 COLORS = {
     "White": ((255,255,255),(157,157,157)), "Yellow": ((247,224,90),(174,158,63)),
@@ -61,6 +62,11 @@ class Preview:
         self.random = random.Random(seed)
         with Image.open(ASSETS / "duck.png") as image:
             self.original_duck = image.convert("RGBA")
+        self.sprites = DuckSprites([self.original_duck])
+        self.reference_head = head_anchor(self.original_duck)
+        self.animation_state, self.animation_clock = "idle", 0.
+        self.walking, self.crouching, self.quack_held = False, False, False
+        self.vx = 0.
         self.color, self.zoom = "White", 2
         self.paused, self.running, self.auto_quack, self.grid = False, False, False, False
         self.facing, self.x, self.y, self.vy = 1, 192., float(self.floor), 0.
@@ -85,7 +91,7 @@ class Preview:
 
     def jump(self):
         if self.y >= self.floor:
-            self.vy = -135.
+            self.vy = -100. * self.zoom
 
     def quack(self):
         self.quacking = .3
@@ -117,7 +123,7 @@ class Preview:
             elif preset==2: vx,vy=math.cos(i/count*math.tau)*1.2,math.sin(i/count*math.tau)*1.2
             elif preset==3: ox,oy,vx,vy=math.cos(i/count*math.tau)*12,math.sin(i/count*math.tau)*4-8,0,-.1
             elif preset==4: oy,vx,vy=-12,0,-.2
-            hx,hy=self.values.get(1,[0,0])
+            hx,hy=self.values.get(1,[0,0]); ax,ay=self.current_head_offset(); hx+=ax;hy+=ay
             self.particles.append(Particle(self.x+(hx+ox)*self.zoom*self.facing,self.y+(-23+hy+oy)*self.zoom,
                                            vx*self.facing,vy,values.get(35,[1.2,0])[0],values,
                                            self.random.randrange(max(1,len(self.frames))),(self.x,self.y)))
@@ -133,13 +139,21 @@ class Preview:
 
     def step(self, dt):
         self.time+=dt;self.since_emit+=dt;self.quacking=max(0,self.quacking-dt)
-        direction=self.direction or (self.facing if self.running else 0)
-        if direction:
-            self.facing=direction;self.x+=direction*40*dt
-            if self.x>330: self.x,self.facing=330,-1
-            elif self.x<54: self.x,self.facing=54,1
-        self.vy+=370*dt;self.y=min(self.floor,self.y+self.vy*dt)
-        if self.y==self.floor: self.vy=0
+        direction=0 if self.crouching else self.direction or (self.facing if self.running else 0)
+        speed=(22.5 if self.walking else 45.)*self.zoom
+        target=direction*speed
+        acceleration=(300. if direction else 420.)*self.zoom
+        self.vx+=clamp(target-self.vx,-acceleration*dt,acceleration*dt)
+        if direction:self.facing=direction
+        self.x+=self.vx*dt
+        if self.x>330:self.x,self.facing,self.vx=330,-1,0.
+        elif self.x<54:self.x,self.facing,self.vx=54,1,0.
+        self.vy+=300.*self.zoom*dt;self.y=min(self.floor,self.y+self.vy*dt)
+        if self.y==self.floor:self.vy=0
+        state=("jump" if self.vy<0 else "fall") if self.y<self.floor else "crouch" if self.crouching else ("walk" if self.walking else "run") if abs(self.vx)>.5 else "idle"
+        if state!=self.animation_state:self.animation_state,self.animation_clock=state,0.
+        self.animation_clock+=dt*(abs(self.vx)/speed if state in ("walk","run") else 1)
+        if self.quack_held:self.quacking=max(self.quacking,.1)
         if self.auto_quack and self.since_emit>.85:
             self.quack();self.since_emit=0
         self.trail.insert(0,(self.x,self.y-21*self.zoom));self.trail=self.trail[:80]
@@ -176,27 +190,31 @@ class Preview:
         draw.ellipse((self.x-20,176,self.x+20,182),fill="#0c181a")
         self.draw_particles(image,True)
         if 11 not in self.values: self.draw_cape(image)
-        moving=self.running or self.direction
-        bob=round(math.sin(self.time*18)) if moving else .35*math.sin(self.time*3)
-        # Assemble body/hat in a local canvas before mirroring, keeping offsets consistent.
-        body=Image.new("RGBA",(96,96));body.alpha_composite(self.duck,(32,32))
-        d=ImageDraw.Draw(body)
-        if moving and self.y==self.floor:
-            foot=round(math.sin(self.time*18)*2)
-            d.rectangle((46+foot,62,50+foot,63),fill="#e99b39")
-            d.rectangle((52-foot,62,55-foot,63),fill="#e99b39")
-        if self.quacking>0:
-            d.rectangle((54,51,61,52),fill="#e99b39");d.line((55,49,61,49),fill="#392622")
-        hx,hy=self.values.get(1,[0,0]);frame=32 if self.quacking>0 and self.hat.width>=64 else 0
-        body.alpha_composite(self.sheet.crop((frame,0,frame+32,32)),(round(32+hx),round(25+hy)))
-        self.sprite(image,body,self.x-48*self.zoom,self.y+bob-64*self.zoom,self.zoom,self.facing<0)
+        frame,anchor=self.sprites.frame(self.animation_state,self.animation_clock,self.quacking>0,self.color,tint)
+        body=Image.new("RGBA",(96,96));body.alpha_composite(frame,(32,32))
+        hx,hy=self.values.get(1,[0,0])
+        hx+=anchor[0]-self.reference_head[0];hy+=anchor[1]-self.reference_head[1]
+        hat_frame=32 if self.quacking>0 and self.hat.width>=64 else 0
+        body.alpha_composite(self.sheet.crop((hat_frame,0,hat_frame+32,32)),(round(32+hx),round(25+hy)))
+        self.sprite(image,body,self.x-48*self.zoom,self.y-64*self.zoom,self.zoom,self.facing<0)
         if 11 in self.values: self.draw_cape(image)
         self.draw_particles(image,False)
         return image
 
+    def set_sprites(self,sprites):
+        self.sprites=sprites
+        self.animation_clock=0.
+        self.particles=[]
+        self.trail=[]
+
+    def current_head_offset(self):
+        _,anchor=self.sprites.frame(self.animation_state,self.animation_clock,self.quacking>0,self.color,tint)
+        return (anchor[0]-self.reference_head[0],anchor[1]-self.reference_head[1])
+
     def draw_cape(self,image):
         if self.hat.width<96: return
-        ox,oy=self.values.get(10,[0,0]);sway,weight=self.values.get(12,[0,.7]);wx,wy=self.values.get(13,[.15,.1])
+        ox,oy=self.values.get(10,[0,0]);ax,ay=self.current_head_offset();ox+=ax;oy+=ay
+        sway,weight=self.values.get(12,[0,.7]);wx,wy=self.values.get(13,[.15,.1])
         start=self.values.get(14,[.45,0])[0];end=self.values.get(15,[1,0])[0]
         a0=self.values.get(16,[1,0])[0];a1=self.values.get(17,[1,0])[0]
         for row in range(32):

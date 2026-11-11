@@ -51,3 +51,12 @@ class PathTests(unittest.TestCase):
         hats=self.home / "OneDrive/Documents" / HATS
         hats.mkdir(parents=True)
         self.assertEqual(find_hats_directory(self.home,"nt"),hats)
+
+    def test_game_content_and_matching_duck_textures(self):
+        from duckmeta.paths import find_content_directory, find_duck_textures
+        content=self.home/'.local/share/Steam/steamapps/common/Duck Game/Content'
+        (content/'Textures').mkdir(parents=True)
+        normal=content/'Textures/duck.xnb';quack=content/'Textures/duckQuack.xnb'
+        for path in (normal,quack,content/'Textures/duckArm.xnb'):path.write_bytes(b'placeholder')
+        self.assertEqual(find_content_directory(self.home),content)
+        self.assertEqual(find_duck_textures(content),(normal,quack))

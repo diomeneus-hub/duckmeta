@@ -44,13 +44,45 @@ The editor detects regular Steam installs, `.steam` aliases, Flatpak Steam, and 
 
 Run Duck Game through Steam at least once to create its Proton prefix. If no prefix is found, the export dialog opens your own Documents/home folder and lets you choose a destination. **Open PNG is unchanged**; only the default export destination is set. You can always choose a different location in the export dialog. On Windows, the app checks Documents and OneDrive/Documents.
 
+## Base hats and XNB textures
+
+Use **File → Load base hat...** (Ctrl+B). The file picker starts in Duck Game's detected Content folder, normally:
+
+```text
+~/.local/share/Steam/steamapps/common/Duck Game/Content
+```
+
+Choose an individual hat `.xnb` texture. **File → Choose game Content folder...** lets you point at a different install; additional Steam libraries are also detected. The app reads the texture into a new editable hat and exports a custom PNG to your usual hats folder. It does not write XNBs, and Export rejects non-PNG filenames.
+
+Supported XNBs: XNA versions 4/5, Texture2D assets, uncompressed/LZX/LZ4 containers, Color RGBA, Bgr565, Bgra5551, Bgra4444, DXT1/3/5 and Alpha8 surfaces. The first mipmap supplies the artwork; remaining mipmaps are validated. Sounds, models, fonts, shared-resource objects, console texture layouts and other surface formats are rejected with an explanation. Base hats still need the editor's 32-pixel-column layout and size limits.
+
+XNA textures normally use premultiplied alpha. Import converts them to straight RGBA for editing and PNG export, so semi-transparent colors may incur rounding; colors already lost by compression or zero alpha cannot be recovered. The original XNB file is untouched. Original-PNG byte-preservation guarantees apply to PNG import, not to reconstructing pre-compilation artwork from XNB.
+
+**Updating from an older release:** reinstall requirements in the app's virtual environment before loading compressed XNBs:
+
+```sh
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+This adds `pylibmspack` for LZX and `lz4` for LZ4; decoding happens locally without Node or command-line converters.
+
+## Real duck animation frames
+
+On startup, the app looks under the detected Content folder for `duck.xnb`/`duck.png` and `duckQuack.xnb`/`duckQuack.png` (case-insensitive). You can also load them through **File → Load duck sprite sheet...** and **Load quack sprite sheet...**. The live preview header identifies the loaded source and frame counts. If no sprites are available, it explicitly says **Single-frame fallback**; it does not invent extra duck frames.
+
+The normal importer accepts 32×32 row-major grids. It also recognizes the **387×781 annotated reference sheet shown in the conversation**, extracting the normal section at `(0,8)` and quack section at `(194,8)` without the surrounding labels. Use the original PNG at its original size, not a scaled screenshot. The inline chat image was not available as a downloadable file in the cloud, so it is **not bundled**: select your saved copy locally, or use the textures from your game install. Original transparent assets give the correct background; the importer does not erase black pixels that might be sprite outlines.
+
+**Preview → Animation settings / sprite frames...** displays a numbered atlas and lets you set frame indices and FPS for idle, walk, run, jump, fall and crouch. Default mappings are inferred (idle 0, walk/run 0–5, jump/fall 6, crouch 7 where available), with 6 FPS walk and 12 FPS run. They are not claimed to be the exact game animation definitions. Mappings and manually selected source paths apply to the current session. Separate quack textures use the matching frame index; missing quack frames fall back to the normal body.
+
+The renderer now draws actual animation frames, rather than adding rectangle feet or a simulated beak. White/gray head detection adjusts the hat, cape attachment and particle emitter as the head moves between frames. Movement accelerates and decelerates, and animation rate follows movement speed. Click the preview and use arrows to move, Down to crouch, Space to jump, and hold Q to keep the quack pose. Walk and Run buttons choose separate speeds. The movement/physics values and head detection remain approximations, and arm/weapon overlays are not simulated.
+
 ## How to use it
 
 - The wizard sample loads automatically. **Open PNG** reads your own hat sheet and existing metapixel column.
 - Select an effect in the stack, then change its sliders. Labels show decoded values and raw byte values. **Apply raw values** accepts exact G, B and alpha values (0–255). Red identifies the effect and is read-only.
 - **Add modifier** searches all 35 IDs from the supplied reference. Booleans are enabled by the pixel's presence; remove the row or set alpha to zero to disable one.
 - **Move up/down** reorders rows. Randomizers affect the preceding non-randomizer. Unknown and duplicate IDs remain in the file; preview uses the last occurrence of a repeated ID.
-- Click the preview for keyboard control: **Left/Right** move, **Space** jumps, **Q** quacks. Buttons provide the same actions. Change duck color, zoom, flip, run/idle, pause, or enable auto quack. Preview preferences are not saved as hat metadata.
+- Click the preview for keyboard control: **Left/Right** move, **Down** crouches, **Space** jumps, hold **Q** to quack. Buttons provide the same actions. Change duck color, zoom, flip, walk/run/idle, pause, or enable auto quack. Preview preferences are not saved as hat metadata.
 - **Export PNG** saves the original artwork plus exactly one metadata column. Existing files are replaced atomically after the file dialog's overwrite confirmation. Edits are held in memory until export; closing or replacing unsaved work offers Save / Discard / Cancel.
 - **Ctrl+O / Ctrl+S / Ctrl+Z / Ctrl+Y** open, export, undo and redo. Undo/redo applies to metadata edits; the history resets when a different PNG is loaded.
 - **Help** contains usage instructions and the original metapixel document.
@@ -59,7 +91,7 @@ You can open a hat directly with `python duckmeta.py path/to/hat.png`.
 
 ## Preview scope
 
-The engine uses a fixed 60 Hz simulation and renders through Pillow into a Tk canvas at approximately 30 frames per second. It includes hat offsets and tinting, approximate run/jump animation, cape deformation and trails, particle shapes/presets, velocity/gravity/friction, alpha, scale, rotation, anchoring, layer order and sprite animation.
+The engine uses a fixed 60 Hz simulation and renders through Pillow into a Tk canvas at approximately 30 frames per second. It includes hat offsets and tinting, imported duck animation frames, cape deformation and trails, particle shapes/presets, velocity/gravity/friction, alpha, scale, rotation, anchoring, layer order and sprite animation.
 
 It is an **independent approximation**, not Duck Game itself. Defaults, attachment points, motion, particle presets and cloth physics need an in-game comparison. IDs 70/71 are editable/exportable but **audio playback is not implemented**. Non-particle randomizers use the range midpoint for a stable preview; particle randomizers are sampled per spawn. Rotation is treated as radians because the reference doesn't specify units. Present preset 31 overrides custom particle modifiers; B selects the preset and None emits nothing. VEC uses signed offsets around 128, including emitter offset 30. INT particle counts use G minus 128, clamped to ±8; negative counts emit nothing.
 
@@ -84,13 +116,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the six GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the nine GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Twenty-seven tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, and window/control/file-dialog callbacks. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Forty-four tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 
@@ -98,6 +130,9 @@ Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its scre
 - `duckmeta/app.py`: native desktop UI.
 - `duckmeta/model.py`: PNG data, metapixel evaluation and history.
 - `duckmeta/preview.py`: simulation and pixel rendering.
+- `duckmeta/xnb.py`: bounded Texture2D XNB decoder.
+- `duckmeta/sprites.py`: grid/reference-sheet import and animation mapping.
+- `duckmeta/paths.py`: Steam Content and custom hat-folder discovery.
 - `duckmeta/effects.json`: all 35 reference definitions.
 - `assets/`: supplied wizard artwork, derived duck sprite, and reference.
 - `tests/`: standard-library unittest suite.

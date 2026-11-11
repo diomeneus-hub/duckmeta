@@ -80,3 +80,41 @@ class GuiTests(unittest.TestCase):
             with patch("duckmeta.app.filedialog.askopenfilename",return_value="") as dialog:
                 self.app.open_file()
                 self.assertNotIn("initialdir",dialog.call_args.kwargs)
+
+    def test_file_menu_loads_lzx_hat_and_preserves_original(self):
+        from xnb_fixtures import texture_payload, xnb
+        labels=[self.app.file_menu.entrycget(i,'label') for i in range(self.app.file_menu.index('end')+1) if self.app.file_menu.type(i)=='command']
+        self.assertIn('Load base hat...',labels)
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'hat.xnb';data=xnb(texture_payload(),'lzx');path.write_bytes(data)
+            with patch('duckmeta.app.filedialog.askopenfilename',return_value=str(path)):
+                self.app.load_base_hat()
+            self.assertEqual(self.app.hat.name,'hat.png');self.assertEqual(self.app.hat.width,32)
+            self.assertEqual(path.read_bytes(),data)
+            with patch('duckmeta.app.filedialog.asksaveasfilename',return_value=str(path)),patch('duckmeta.app.messagebox.showerror') as error:
+                self.assertFalse(self.app.save_file());error.assert_called_once()
+            self.assertEqual(path.read_bytes(),data)
+
+    def test_bad_xnb_keeps_current_hat(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'bad.xnb';path.write_bytes(b'not an xnb')
+            before=self.app.hat.png()
+            with patch('duckmeta.app.filedialog.askopenfilename',return_value=str(path)),patch('duckmeta.app.messagebox.showerror') as error:
+                self.app.load_base_hat();error.assert_called_once()
+            self.assertEqual(self.app.hat.png(),before)
+
+    def test_loads_sprite_png_and_game_xnb_pair(self):
+        from test_sprites import duck_grid
+        from xnb_fixtures import texture_payload,xnb
+        with tempfile.TemporaryDirectory() as folder:
+            folder=Path(folder);image=duck_grid();path=folder/'reference.png';image.save(path)
+            with patch('duckmeta.app.filedialog.askopenfilename',return_value=str(path)):
+                self.app.load_duck_sheet()
+            self.assertEqual(len(self.app.engine.sprites.normal),8)
+            for name in ('duck.xnb','duckQuack.xnb'):
+                (folder/name).write_bytes(xnb(texture_payload(image.width,image.height,pixels=image.tobytes()),'lz4'))
+            self.app.content_directory=folder;self.app.auto_load_sprites()
+            self.assertEqual(len(self.app.engine.sprites.quack),8)
+            self.app.animation_settings();self.root.update()
+            dialogs=[w for w in self.root.winfo_children() if isinstance(w,tk.Toplevel)]
+            self.assertEqual(len(dialogs),1);dialogs[0].destroy()
