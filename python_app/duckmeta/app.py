@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import io
 import tempfile
 import time
 import tkinter as tk
@@ -15,6 +16,7 @@ from .model import ASSETS, BY_ID, EFFECTS, EMPTY, Hat, History, decode_value
 from .preview import COLORS, NEAREST, Preview
 from .paths import find_hats_directory, fallback_directory, find_content_directory, find_duck_textures
 from .sprites import DuckSprites, STATES, load_sprite_image
+from .clipboard import copy_png
 from .xnb import read_texture
 from .settings import settings_path, read_export_folder, write_export_folder
 
@@ -149,6 +151,10 @@ class App:
         combo.bind("<<ComboboxSelected>>",self.zoom_changed);ttk.Label(settings,text="Zoom ").pack(side="right")
         ttk.Label(middle,text="SPRITE SHEET  ·  IDLE / QUACK / CAPE / ROCK / PARTICLES / METADATA",style="Muted.TLabel").grid(row=4,column=0,sticky="w",pady=8)
         self.sheet_label=ttk.Label(middle,anchor="center");self.sheet_label.grid(row=5,column=0,sticky="ew")
+        self.sheet_menu=tk.Menu(self.root,tearoff=False)
+        self.sheet_menu.add_command(label="Copy sprite sheet",command=self.copy_sheet)
+        self.sheet_menu.add_command(label="Copy sprite sheet with metadata",command=lambda:self.copy_sheet(True))
+        self.sheet_label.bind("<Button-3>",self.show_sheet_menu)
         ttk.Label(middle,text="Click preview: arrows move · Down crouches · Space jumps · hold Q to quack\nApproximate game physics. Check final behavior in Duck Game.",style="Muted.TLabel",justify="left").grid(row=6,column=0,sticky="w",pady=10)
         right=ttk.Frame(content,width=280,padding=12);right.grid(row=0,column=2,sticky="nsew",padx=(12,0));right.pack_propagate(False)
         bar=ttk.Frame(right);bar.pack(fill="x")
@@ -480,6 +486,22 @@ class App:
 
     def example(self):
         if self.confirm_replace():self.install_hat(Hat.example());self.status.set("Wizard example loaded.")
+
+    def show_sheet_menu(self,event):
+        try:
+            self.sheet_menu.tk_popup(event.x_root,event.y_root)
+        finally:
+            self.sheet_menu.grab_release()
+
+    def copy_sheet(self,include_metadata=False):
+        image=self.hat.image() if include_metadata else self.hat.artwork
+        stream=io.BytesIO();image.save(stream,format="PNG")
+        try:
+            copy_png(stream.getvalue())
+        except RuntimeError as exc:
+            messagebox.showerror("Could not copy sprite sheet",str(exc),parent=self.root);return
+        self.status.set(f"Copied {image.width} × {image.height} PNG with transparency" +
+                        (" and metadata." if include_metadata else " (artwork only)."))
 
     def draw_sheet(self):
         raw=self.hat.image()

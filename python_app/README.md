@@ -112,6 +112,22 @@ Texture2D XNBs contain compiled image data (dimensions, surface format, mipmaps,
 
 These corrections were checked against the public Duck Game Rebuilt source (a modified decompilation, not a runtime verification of your Steam build): [save location selection](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/MonoTime/File/DuckFile.cs#L219), [custom PNG layout](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/DuckGame/Profile/Team.cs#L143), and [built-in overlays](https://github.com/TheFlyingFoool/DuckGameRebuilt/blob/cda9564afe4baf07ff5cf958227e7bb48a4c7db9/DuckGame/src/DuckGame/Equipment/TeamHat.cs#L561).
 
+## Copying sprite sheets
+
+Right-click the sprite sheet at the bottom of the editor. **Copy sprite sheet** copies original-resolution artwork as a transparent PNG, without the metadata column. **Copy sprite sheet with metadata** includes the current metadata column. Neither copies the scaled preview or checkerboard. Paste into an image editor that accepts PNG clipboard data.
+
+Linux image clipboard support uses `wl-copy` on Wayland or `xclip` on X11. On EndeavourOS install the helpers if needed:
+
+```sh
+sudo pacman -S wl-clipboard xclip
+```
+
+Clipboard routing, error handling, and the copied PNG's dimensions/pixels are tested; pasting into your desktop image editor still needs a local check. Other operating systems currently have no image clipboard backend.
+
+## Coordinate corrections
+
+Hat offset is subtracted from the head position, matching the game's equipment placement: increasing G moves backward and increasing B moves up. Horizontal movement reverses when the duck faces left. Cape and emitter offsets are additive, so they must not all be inverted. Signed normalized vector values now have exact zero at byte 128 and endpoints −1/+1. Cape sway uses horizontal displacement and vertical length, not rotation; cape cloth remains approximate. Exported raw metadata is unchanged by these preview corrections, so existing hats need no byte migration.
+
 ## File preservation
 
 Accepts 8-bit RGB, RGBA, grayscale, grayscale+alpha and indexed PNGs. Width must be a multiple of 32, optionally plus one metadata column. Artwork is limited to 1024×1024 and input files to 8 MB. Unsupported bit depths and malformed PNGs are rejected before editing.
@@ -125,13 +141,13 @@ Artwork RGBA bytes, transparent RGB, unknown metadata IDs, row order, duplicate 
 .venv/bin/python duckmeta.py --render preview.png
 ```
 
-Without a display, the ten GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
+Without a display, the eleven GUI tests are explicitly skipped and model/renderer tests still run. To test the actual GUI on a headless Linux machine, install `xvfb` and `xauth`, then run:
 
 ```sh
 xvfb-run -a .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Forty-nine tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
+Set `DUCKMETA_SCREENSHOT` to a PNG path to save a GUI screenshot during its screenshot test. Fifty-five tests cover PNG round trips, unknown/transparent bytes, indexed images, validation, randomizers, history, animation, live rendering, XNB containers and surface formats, Steam Content discovery, frame selection and head alignment, and window/control/file-dialog callbacks. XNB tests use generated fixtures, including actual LZX Huffman data and multiple LZX frames; no installed Duck Game XNB files were available in the cloud for testing. Native file pickers are mocked in automation; their import/export callbacks read and write actual temporary PNGs.
 
 ## Contents
 

@@ -13,7 +13,7 @@
       128,
       128
     ],
-    "description": "Move the hat relative to the duck’s head. 128 encodes zero offset."
+    "description": "Move the hat relative to the duck’s head. 128 is zero. Increasing Horizontal moves it backward; increasing Vertical moves it up."
   },
   {
     "id": 2,
@@ -64,14 +64,14 @@
     "kind": "NNVEC",
     "max": 1,
     "labels": [
-      "Rotation",
-      "Weight"
+      "Horizontal sway",
+      "Vertical length"
     ],
     "defaults": [
       128,
       220
     ],
-    "description": "Adjust cape rotation and weight. Preview uses an approximate cloth simulation."
+    "description": "Adjust horizontal cape sway and vertical length. 128 means zero; higher values push right (when facing right) and down. Cloth motion remains approximate."
   },
   {
     "id": 13,
@@ -480,7 +480,7 @@
       0,
       0
     ],
-    "description": "Changes the game’s quack sound. Export supported; original game audio is not included."
+    "description": "adds a lip smack when you let go of quack"
   },
   {
     "id": 71,

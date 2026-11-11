@@ -129,3 +129,17 @@ class GuiTests(unittest.TestCase):
         with patch("duckmeta.app.find_hats_directory",return_value=Path("/wrong")), patch("duckmeta.app.filedialog.asksaveasfilename",return_value="") as dialog:
             self.app.save_file()
             self.assertEqual(dialog.call_args.kwargs["initialdir"],str(folder))
+
+    def test_copy_sheet_preserves_original_pixels_and_optional_metadata(self):
+        import io
+        from PIL import Image
+        self.assertTrue(self.app.sheet_label.bind('<Button-3>'))
+        for include_metadata in (False,True):
+            with patch('duckmeta.app.copy_png') as copy:
+                self.app.copy_sheet(include_metadata)
+                image=Image.open(io.BytesIO(copy.call_args.args[0]))
+                expected=self.app.hat.image() if include_metadata else self.app.hat.artwork
+                self.assertEqual(image.size,expected.size)
+                self.assertEqual(image.tobytes(),expected.tobytes())
+        with patch('duckmeta.app.copy_png',side_effect=RuntimeError('missing helper')),patch('duckmeta.app.messagebox.showerror') as error:
+            self.app.copy_sheet();error.assert_called_once()

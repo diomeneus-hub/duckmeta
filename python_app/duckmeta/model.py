@@ -23,8 +23,10 @@ def decode_value(definition, raw):
         return max(-maximum, min(maximum, raw - 128))
     if kind in ("NVEC", "FLOAT"):
         return raw / 255 * maximum
-    if kind in ("NNVEC", "NFLOAT"):
-        return (raw / 255 * 2 - 1) * maximum
+    if kind == "NNVEC":
+        return max(-127, raw - 128) / 127 * maximum
+    if kind == "NFLOAT":
+        return (raw - 128) / 128 * maximum
     return raw
 
 
@@ -36,7 +38,7 @@ def evaluate(slots, rng=random.random):
         if ident in (100, 101, 102):
             if previous not in values:
                 continue
-            low, high = green / 255 * 2 - 1, blue / 255 * 2 - 1
+            low, high = decode_value(BY_ID[ident], green), decode_value(BY_ID[ident], blue)
             if ident in (100, 102):
                 values[previous][0] *= low + rng() * (high - low)
             if ident in (101, 102):

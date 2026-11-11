@@ -64,3 +64,11 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(history.redo(hat));self.assertEqual(hat.slots[0][1],140)
         history.undo(hat);history.record(hat.slots);hat.slots[0]=EMPTY
         self.assertFalse(history.redo(hat))
+
+    def test_signed_normalized_zero_and_extremes(self):
+        for ident in (12,13,36,37,100,101,102):
+            definition=BY_ID[ident]
+            self.assertEqual(decode_value(definition,128),0)
+            self.assertEqual(decode_value(definition,0),-definition['max'])
+            self.assertEqual(decode_value(definition,255),definition['max'])
+        self.assertEqual(evaluate([(36,255,255,255),(100,128,128,255)])[36][0],0)

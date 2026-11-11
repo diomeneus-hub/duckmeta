@@ -74,3 +74,32 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual([f.size for f in self.preview.frames],[(12,12)]*3)
         self.assertEqual([f.getpixel((0,0)) for f in self.preview.frames],[colors[0],colors[2],colors[3]])
         self.assertEqual(self.hat.png(),before)
+
+    def test_hat_offset_moves_backward_and_up_in_both_facings(self):
+        from PIL import Image
+        art=Image.new('RGBA',(32,32));art.putpixel((16,16),(17,231,42,255))
+        hat=Hat.from_image(art,'marker.png');preview=Preview(hat)
+        def marker():
+            image=preview.render()
+            return min((x,y) for y in range(image.height) for x in range(image.width)
+                       if image.getpixel((x,y))==(17,231,42,255))
+        for facing in (1,-1):
+            preview.facing=facing;hat.slots[0]=(1,128,128,255);preview.rebuild()
+            before=marker()
+            hat.slots[0]=(1,132,131,255);preview.rebuild();after=marker()
+            self.assertEqual((after[0]-before[0],after[1]-before[1]),(-8*facing,-6))
+
+    def test_cape_offset_is_additive_and_sway_is_not_rotation(self):
+        from PIL import Image
+        def bounds():
+            image=Image.new('RGBA',(384,240));self.preview.draw_cape(image)
+            return image.getbbox()
+        self.hat.slots=[EMPTY]*self.hat.height
+        self.hat.slots[0]=(12,128,255,255);self.preview.rebuild()
+        for facing in (1,-1):
+            self.preview.facing=facing;self.hat.slots[1]=EMPTY;self.preview.rebuild()
+            before=bounds()
+            self.hat.slots[1]=(10,132,131,255);self.preview.rebuild();after=bounds()
+            self.assertEqual(tuple(b-a for a,b in zip(before,after)),(8*facing,6,8*facing,6))
+        self.hat.slots[0]=(12,255,255,255);self.preview.rebuild()
+        self.assertGreater(bounds()[3]-bounds()[1],20)

@@ -134,7 +134,7 @@ class Preview:
             elif preset==2: vx,vy=math.cos(i/count*math.tau)*1.2,math.sin(i/count*math.tau)*1.2
             elif preset==3: ox,oy,vx,vy=math.cos(i/count*math.tau)*12,math.sin(i/count*math.tau)*4-8,0,-.1
             elif preset==4: oy,vx,vy=-12,0,-.2
-            hx,hy=self.values.get(1,[0,0]); ax,ay=self.current_head_offset(); hx+=ax;hy+=ay
+            hx,hy=self.values.get(1,[0,0]); ax,ay=self.current_head_offset(); hx=ax-hx;hy=ay-hy
             self.particles.append(Particle(self.x+(hx+ox)*self.zoom*self.facing,self.y+(-23+hy+oy)*self.zoom,
                                            vx*self.facing,vy,values.get(35,[1.2,0])[0],values,
                                            self.random.randrange(max(1,len(self.frames))),(self.x,self.y)))
@@ -204,7 +204,7 @@ class Preview:
         frame,anchor=self.sprites.frame(self.animation_state,self.animation_clock,self.quacking>0,self.color,tint)
         body=Image.new("RGBA",(96,96));body.alpha_composite(frame,(32,32))
         hx,hy=self.values.get(1,[0,0])
-        hx+=anchor[0]-self.reference_head[0];hy+=anchor[1]-self.reference_head[1]
+        hx=anchor[0]-self.reference_head[0]-hx;hy=anchor[1]-self.reference_head[1]-hy
         hat_frame=32 if self.quacking>0 and self.hat.width>=64 else 0
         body.alpha_composite(self.sheet.crop((hat_frame,0,hat_frame+32,32)),(round(32+hx),round(25+hy)))
         self.sprite(image,body,self.x-48*self.zoom,self.y-64*self.zoom,self.zoom,self.facing<0)
@@ -225,7 +225,7 @@ class Preview:
     def draw_cape(self,image):
         if self.hat.width<96: return
         ox,oy=self.values.get(10,[0,0]);ax,ay=self.current_head_offset();ox+=ax;oy+=ay
-        sway,weight=self.values.get(12,[0,.7]);wx,wy=self.values.get(13,[.15,.1])
+        sway,weight=self.values.get(12,[.3,1]);wx,wy=self.values.get(13,[.15,.1])
         start=self.values.get(14,[.45,0])[0];end=self.values.get(15,[1,0])[0]
         a0=self.values.get(16,[1,0])[0];a1=self.values.get(17,[1,0])[0]
         for row in range(32):
@@ -237,13 +237,12 @@ class Preview:
             if 20 in self.values:
                 if not self.trail: continue
                 px,py=self.trail[min(len(self.trail)-1,row*2)]
-                px+=ox*self.zoom;py+=oy*self.zoom
+                px+=ox*self.zoom*self.facing;py+=oy*self.zoom
             else:
                 wind=math.sin(self.time*4-row*.25)*wx*5*f-(f*5 if self.running else 0)
-                length=row*(.25+.55*abs(weight))*(-1 if weight<0 else 1)+math.sin(self.time*3-row*.2)*wy*3*f
-                angle=sway*1.8
-                px=self.x+(-5+ox+wind*math.cos(angle)-length*math.sin(angle))*self.zoom*self.facing
-                py=self.y+(-22+oy+wind*math.sin(angle)+length*math.cos(angle))*self.zoom
+                length=row*.8*weight+math.sin(self.time*3-row*.2)*wy*3*f
+                px=self.x+(-5+ox+wind+row*.8*sway)*self.zoom*self.facing
+                py=self.y+(-22+oy+length)*self.zoom
             image.alpha_composite(opacity(strip,alpha),(round(px-width/2),round(py)))
 
     def draw_particles(self,image,background):
